@@ -58,7 +58,7 @@ Automationen werden weiterhin auf dem iPhone eingerichtet. In der englischen Kur
 
 Mit installiertem TypeScript: `node --test tests/*.test.cjs`. Die Tests prüfen den gemeinsamen beobachteten ZeusX-Aufruf, das Behalten der Knöpfe bei Abbruch, das Entfernen von Einstempeln erst nach Bestätigung, Ausstempeln erst nach Verlassen, das Ende der Activity sowie Aufzeichnung, Export und Kurzbefehl-Aufrufe. Es werden keine echten Stempelungen ausgelöst.
 
-Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.2 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
+Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.3 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
 
 ## Startkorrektur in 1.3.1
 
@@ -71,3 +71,9 @@ Das vorhandene Projekt in Scripting aus diesem Repository aktualisieren und dana
 Der Verlassen-Aufruf wird jetzt auch behandelt, wenn ein `scripting://run/ChaxterLog?leave=1`-Link das bereits laufende Skript fortsetzt. Zuvor wurde `leave` in diesem Fall ignoriert. Der empfohlene Link bleibt `scripting://run_single/ChaxterLog?leave=1`; dieser startet den Ablauf neu. Der Ausstempeln-Knopf wird vor der Erinnerung aktualisiert und bleibt auch bei einem Fehler der Benachrichtigungen sichtbar.
 
 Zum Prüfen: vorhandenes ChaxterLog-Projekt auf **1.3.2** aktualisieren, `index.tsx` starten und nach deiner eigenen regulären ZeusX-Buchung **Ja, eingestempelt** bestätigen. Jetzt bleiben die drei Zählknöpfe. Den Verlassen-Kurzbefehl ausführen: **Ausstempeln** muss erscheinen. Nach eigener Ausstempelung und **Ja, ausgestempelt** endet die Activity. Ohne zuvor bestätigtes Einstempeln beendet Verlassen die Activity direkt.
+
+## Sofortiges Entfernen in 1.3.3
+
+Nach **Ja, ausgestempelt** wird die Activity jetzt mit `dismissTimeInterval: 0` sofort vom Sperrbildschirm entfernt. Ohne diese Option konnte die bereits beendete Anzeige noch mehrere Stunden sichtbar bleiben. Fehler beim Löschen von Erinnerungen verhindern das Entfernen nicht mehr. Auch beim Ersetzen einer alten Activity und beim Verlassen ohne offene Ausstempelung wird die alte Anzeige sofort entfernt.
+
+Das vorhandene Projekt auf **1.3.3** aktualisieren und `index.tsx` einmal neu starten. Die bisherigen Kurzbefehl-Links bleiben gleich. Der Abschluss erfolgt weiterhin nach deiner eigenen ZeusX-Buchung und der Bestätigung **Ja, ausgestempelt**; es werden keine Buchungen automatisch ausgeführt.

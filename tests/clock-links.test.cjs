@@ -11,11 +11,11 @@ const compile = (file) => ts.transpileModule(readFileSync(join(root, file), 'utf
 
 function harness({ action = 'clockIn', resume = false, opened = true, url, fetchFails = false, background = resume, notificationFailure } = {}) {
   const values = new Map(), calls = []
-  let active = true, onResume, config
+  let active = true, visible = true, onResume, config
   // Scripting exports Notification from its module, rather than as a global.
   const notifications = {
     removeAllPendingsOfCurrentScript: async () => { if (notificationFailure === 'clear') throw new Error('Notifications unavailable'); calls.push({ kind: 'clear' }) },
-    removeAllDeliveredsOfCurrentScript: async () => {},
+    removeAllDeliveredsOfCurrentScript: async () => { if (notificationFailure === 'delivered') throw new Error('Notification cleanup failed') },
     schedule: async () => { if (notificationFailure === 'schedule') throw new Error('Notifications denied'); calls.push({ kind: 'schedule' }) },
   }
   const context = vm.createContext({
@@ -43,7 +43,7 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
     scripting: { Script: script, Notification: notifications, LiveActivity: {
       getAllActivities: async () => active ? [{ id: 'fixture', state: 'active' }] : [],
       from: async () => ({ update: async (state) => calls.push({ kind: 'update', state }) }),
-      endAllActivities: async () => { active = false; calls.push({ kind: 'end' }) },
+      endAllActivities: async (options) => { active = false; if (options?.dismissTimeInterval <= 0) visible = false; calls.push({ kind: 'end' }) },
     } },
     './config': config,
     './zeus-flow': {
@@ -56,13 +56,13 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
     },
     './api': { callApi: async () => { calls.push({ kind: 'fetch' }); return fetchFails ? { ok: false, message: 'offline' } : { ok: true, state } } },
     './audio': { startSilentAudio: async () => async () => {} },
-    './live_activity': { ChaxterActivity: () => ({ start: async (state) => { active = true; calls.push({ kind: 'start', state }); return true }, update: async () => {} }) },
+    './live_activity': { ChaxterActivity: () => ({ start: async (state) => { active = true; visible = true; calls.push({ kind: 'start', state }); return true }, update: async () => {} }) },
   })[name]
   vm.runInContext(compile('index.tsx').replace(/\nmain\(\)[\s\S]*$/, ''), context)
   return { calls, config, values, run: async () => {
     await vm.runInContext('main()', context)
     if (resume) await onResume({ queryParameters: { [action]: '1' } })
-  }, isActive: () => active }
+  }, isActive: () => active, isVisible: () => visible }
 }
 
 for (const resume of [false, true]) {
@@ -80,6 +80,7 @@ for (const resume of [false, true]) {
     await h.run()
     assert.equal(h.calls.find(call => call.kind === 'zeus').active, true)
     assert.equal(h.isActive(), false)
+    assert.equal(h.isVisible(), false, 'clock-out must remove the ended activity from the Lock Screen immediately')
     assert.equal(h.config.clockOutPending(), false)
     assert.equal(h.config.arrivedToday(), false)
   })
@@ -168,4 +169,13 @@ for (const resume of [false, true]) {
       assert.ok(h.calls.some(call => call.kind === 'update' && call.state.clockOut && !call.state.clockIn))
     })
   }
+}
+
+for (const notificationFailure of ['clear', 'delivered']) {
+  test(`clock-out immediately dismisses the activity even if ${notificationFailure} notifications cannot be cleared`, async () => {
+    const h = harness({ action: 'clockOut', notificationFailure })
+    await h.run()
+    assert.equal(h.isVisible(), false)
+    assert.equal(h.config.clockOutPending(), false)
+  })
 }

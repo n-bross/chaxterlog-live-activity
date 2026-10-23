@@ -79,9 +79,14 @@ async function clockOut() {
   markClockedOut()
   clearArrival()
   Storage.set(RUNNER_KEY, "", SHARED)
-  await Notification.removeAllPendingsOfCurrentScript()
-  await Notification.removeAllDeliveredsOfCurrentScript()
-  await LiveActivity.endAllActivities()
+  // Ending alone can leave the activity visible on the Lock Screen for hours.
+  await LiveActivity.endAllActivities({ dismissTimeInterval: 0 })
+  try {
+    await Notification.removeAllPendingsOfCurrentScript()
+    await Notification.removeAllDeliveredsOfCurrentScript()
+  } catch (error) {
+    console.log(`Erinnerungen nicht verfügbar: ${String(error)}`)
+  }
 }
 
 async function openTimeTracking(action: "in" | "out") {
@@ -111,7 +116,7 @@ async function leave() {
     const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
     if (last) await updateRunning(last)
   } else {
-    try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
+    try { await LiveActivity.endAllActivities({ dismissTimeInterval: 0 }) } catch { /* nothing running */ }
   }
   try {
     await Notification.removeAllPendingsOfCurrentScript()
@@ -166,7 +171,7 @@ async function main() {
   // One activity at a time: a new run replaces the previous one and its polling loop.
   const runner = `${Date.now()}-${Math.random()}`
   Storage.set(RUNNER_KEY, runner, SHARED)
-  try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
+  try { await LiveActivity.endAllActivities({ dismissTimeInterval: 0 }) } catch { /* nothing running */ }
   const activity = ChaxterActivity()
   if (!await activity.start(withClockIn(first.state))) {
     await Dialog.alert({ title: "ChaxterLog", message: "Live Activity konnte nicht gestartet werden. Live-Aktivitäten für Scripting in den Einstellungen erlauben." })
@@ -231,6 +236,6 @@ async function keepPolling(
 
 main().catch(async (error) => {
   const message = String(error)
-  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.2: ${message}`, SHARED)
-  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.2\n${message}` })
+  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.3: ${message}`, SHARED)
+  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.3\n${message}` })
 }).finally(() => Script.exit())
