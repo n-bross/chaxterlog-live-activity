@@ -12,6 +12,7 @@ const TOKEN_KEY = "chaxterlog.token"
 export const SHARED = { shared: true }
 export const LAST_STATE_KEY = "chaxterlog.lastState"
 export const DEBUG_KEY = "chaxterlog.debug"
+export const TAP_KEY = "chaxterlog.lastTap"
 
 export type ChaxterState = {
   u15: number
