@@ -16,8 +16,8 @@ Mit Scripting PRO läuft `index.tsx` im Hintergrund weiter und fragt alle 15 Sek
 
 - **Ankommen (empfohlen):** Kurzbefehle → Automation → „Ankommen“ → „Sofort ausführen“ (Run Immediately) → Aktion **„Skript in App ausführen“ / „Run Script in App“** von Scripting → Skript „ChaxterLog“ aus der Liste wählen. Das startet `intent.tsx`, das den passenden Link selbst öffnet; der Skriptname muss nicht stimmen. Für „Verlassen“ dieselbe Aktion mit dem Text „gehen“ als Eingabe (dafür in Scripting beim Projekt unter Intent-Einstellungen „Text“ als Eingabe erlauben).
 - **Ankommen per Link:** In der Kurzbefehle-App eine persönliche Automation „Ankommen“ beim Arbeitsort anlegen, „Sofort ausführen“ wählen, Aktion „URL öffnen“ mit `scripting://run_single/ChaxterLog?arrive=1`. Das öffnet Scripting kurz und startet die Live Activity (iOS lässt sie nur bei geöffneter App starten). Wer schon ein eigenes Standort-Skript hat, öffnet von dort denselben Link oder ruft `Script.run({ name: "ChaxterLog", queryParameters: { arrive: true } })` auf.
-- **Einstempeln:** Nach dem Ankommen steht über den Zählknöpfen ein oranger Knopf „Einstempeln“. Er öffnet `CLOCK_IN_URL` aus `config.ts` (die Login-Seite des Zeitsystems) und verschwindet danach bis zum nächsten Tag. Solange er nicht gedrückt wurde, kommen Erinnerungen nach 10, 20 und 30 Minuten (`REMINDER_MINUTES`) mit Ton und Vibration; Tippen auf die Erinnerung stempelt genauso ein.
-- **Ausstempeln:** Nach dem Einstempeln steht dort ein kleinerer Knopf „Ausstempeln“. Er öffnet ebenfalls das Zeitsystem und verschwindet danach. Gestempelt wird nie automatisch, nur über die Knöpfe.
+- **Einstempeln:** Nach dem Ankommen steht über den Zählknöpfen ein oranger Knopf „Einstempeln“. Er öffnet die hinterlegte ZeusX-Seite der Stadt Grafing (`CLOCK_IN_URL` in `config.ts`). Sobald iOS das Öffnen bestätigt, verschwindet der Knopf bis zum nächsten Tag. Schlägt das Öffnen fehl, bleiben Knopf und Erinnerungen aktiv. Solange er nicht gedrückt wurde, kommen Erinnerungen nach 10, 20 und 30 Minuten (`REMINDER_MINUTES`) mit Ton und Vibration; Tippen auf die Erinnerung öffnet dieselbe Seite.
+- **Ausstempeln:** Nach dem Einstempeln steht dort ein kleinerer Knopf „Ausstempeln“. Er öffnet ebenfalls das Zeitsystem und verschwindet danach. Die Knöpfe öffnen die Website. Einloggen und das tatsächliche Stempeln erfolgen dort; das Skript kann den Erfolg der Stempelung nicht feststellen.
 - **Gehen (optional):** Automation „Verlassen“ mit `scripting://run_single/ChaxterLog?leave=1`. Ist schon ausgestempelt, endet die Live Activity. Sonst bleibt sie mit dem Ausstempeln-Knopf stehen und es kommt eine Erinnerung.
 
 Einfacher: `index.tsx` von Hand starten. Solange noch keine Ankunft ankam, fragt das Skript „Automatisch starten beim Ankommen?“ und kopiert den passenden Link (mit dem Namen, unter dem das Skript installiert ist) in die Zwischenablage. Automationen lassen sich bei iOS nicht als Datei verschicken, sie müssen auf dem iPhone angelegt werden. Die Links stehen außerdem bei jedem Start im Log.
@@ -34,3 +34,7 @@ Einfacher: `index.tsx` von Hand starten. Solange noch keine Ankunft ankam, fragt
 | `audio.ts` | Stille Audio-Wiedergabe, damit iOS das Skript im Hintergrund weiterlaufen lässt |
 
 `app_intents.tsx` darf `live_activity.tsx` weder direkt noch über andere Dateien importieren: Scripting führt die Datei sonst ein zweites Mal aus, und die doppelte Registrierung bricht mit „Registering the same builder name repeatedly is not allowed“ ab.
+
+## Prüfen
+
+Mit installiertem TypeScript: `node --test tests/clock-links.test.cjs`. Die Tests prüfen erfolgreiche und fehlgeschlagene Seitenaufrufe bei laufendem und neu gestarteten Skript sowie nach dem Verlassen der Arbeit.

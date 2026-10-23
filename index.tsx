@@ -77,9 +77,19 @@ async function clockOut() {
   if (last) await updateRunning(last)
 }
 
-async function openTimeTracking(done: string) {
-  if (CLOCK_IN_URL) await Safari.openURL(CLOCK_IN_URL)
-  else await Dialog.alert({ title: "ChaxterLog", message: `Als ${done} markiert. Für den Link zum Zeitsystem CLOCK_IN_URL in config.ts eintragen.` })
+async function openTimeTracking() {
+  try {
+    if (CLOCK_IN_URL && await Safari.openURL(CLOCK_IN_URL)) return true
+  } catch (error) {
+    console.log(`Zeitsystem öffnen: ${String(error)}`)
+  }
+  await Dialog.alert({
+    title: "Zeitsystem nicht geöffnet",
+    message: CLOCK_IN_URL
+      ? "Die Seite konnte nicht geöffnet werden. Bitte erneut versuchen. Knopf und Erinnerungen bleiben aktiv."
+      : "Bitte CLOCK_IN_URL in config.ts eintragen. Knopf und Erinnerungen bleiben aktiv.",
+  })
+  return false
 }
 
 // Leaving ends the activity, unless today's clock-out is still open: then the activity stays with
@@ -126,15 +136,15 @@ async function main() {
   const params = Script.queryParameters ?? {}
   if (flag(params.leave)) return leave()
   if (flag(params.arrive)) await arrive()
-  // Clocking in through a fresh run: mark first, so the new activity starts without the button.
+  // The reminder is dismissed only after iOS has opened the time tracking page.
   const clockingIn = flag(params.clockIn)
   const clockingOut = flag(params.clockOut)
-  if (clockingIn) await clockIn()
-  if (clockingOut) await clockOut()
   // Clocking out after leaving work: the day is done, so the activity ends instead of restarting.
   if (clockingOut && !arrivedToday()) {
+    if (!await openTimeTracking()) return
+    await clockOut()
     try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
-    return openTimeTracking("ausgestempelt")
+    return
   }
   const lastIntent = Storage.get<string>(DEBUG_KEY, SHARED)
   if (lastIntent) console.log(`Letzter Knopf-Tipp: ${lastIntent}`)
@@ -165,8 +175,8 @@ async function main() {
   }
 
   // Live Activities can only start while Scripting is open, so the browser opens afterwards.
-  if (clockingIn) await openTimeTracking("eingestempelt")
-  if (clockingOut) await openTimeTracking("ausgestempelt")
+  if (clockingIn && await openTimeTracking()) await clockIn()
+  if (clockingOut && await openTimeTracking()) await clockOut()
 
   // Without PRO the script ends here; the activity stays and updates on every tap.
   // With BACKGROUND_POLLING (needs Scripting PRO) changes by other staff also arrive on their own.
@@ -183,13 +193,11 @@ async function main() {
       const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
       if (last) await updateRunning(last)
     }
-    if (flag(queryParameters?.clockIn)) {
+    if (flag(queryParameters?.clockIn) && await openTimeTracking()) {
       await clockIn()
-      await openTimeTracking("eingestempelt")
     }
-    if (flag(queryParameters?.clockOut)) {
+    if (flag(queryParameters?.clockOut) && await openTimeTracking()) {
       await clockOut()
-      await openTimeTracking("ausgestempelt")
     }
   })
   let stopAudio: (() => Promise<void>) | null = null

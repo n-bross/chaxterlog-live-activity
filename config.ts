@@ -25,7 +25,7 @@ export const AUDIO_MODE: "mix" | "nowPlaying" | "off" = "mix"
 // shows an "Einstempeln" button that stays until it is tapped, and reminders follow after these
 // minutes. After clocking in, a smaller "Ausstempeln" button stays until that is tapped too.
 // Both buttons open CLOCK_IN_URL, the time tracking system; nothing is stamped automatically.
-export const CLOCK_IN_URL = ""
+export const CLOCK_IN_URL = "https://zeiterfassung.grafing.de/ZeusX/content/workspace.aspx?id=ac6ee697-ebcd-4323-9acb-cafb0303a9ff"
 export const REMINDER_MINUTES = [10, 20, 30]
 const ARRIVED_KEY = "chaxterlog.arrivedOn"
 const CLOCKED_IN_KEY = "chaxterlog.clockedInOn"
