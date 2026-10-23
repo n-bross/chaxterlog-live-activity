@@ -6,6 +6,7 @@ import {
   LiveActivityUI,
   LiveActivityUIBuilder,
   LiveActivityUIExpandedBottom,
+  Link,
   Spacer,
   Text,
   VStack,
@@ -17,6 +18,8 @@ import { ACTIVITY_NAME, type ChaxterState } from "./config"
 const PETROL = "#007ca5", YELLOW = "#fffd24", YELLOW_INK = "#10222b"
 // Confirmation colours: green for a counted visit, red for an undo (as the website's −1 badge).
 const SUCCESS = "#22a065", MINUS = "#e5484d"
+// The clock-in reminder uses the system's attention colour.
+const REMINDER = "systemOrange"
 // Undo sits on the wallpaper like the Lock Screen's own controls: a dark translucent circle.
 const CONTROL = "rgba(0, 0, 0, 0.35)"
 const STYLE = {
@@ -59,6 +62,19 @@ function Buttons({ state, height }: { state: ChaxterState; height: number }) {
   )
 }
 
+// Shown from arriving at work until it is tapped; the link opens Scripting, which marks the day as
+// clocked in and opens the time tracking login.
+function ClockInButton({ url, height }: { url: string; height: number }) {
+  return (
+    <Link url={url}>
+      <HStack spacing={8} frame={{ maxWidth: "infinity", minHeight: height, maxHeight: height }} background={{ style: REMINDER, shape: "capsule" }}>
+        <Image systemName="clock.badge.exclamationmark.fill" font={18} foregroundStyle="white" />
+        <Text font={16} fontWeight="semibold" foregroundStyle="white">Einstempeln</Text>
+      </HStack>
+    </Link>
+  )
+}
+
 // Only errors get a line; when everything works the activity is just the three buttons.
 function ErrorLine({ message }: { message: string }) {
   return (
@@ -71,6 +87,7 @@ function ErrorLine({ message }: { message: string }) {
 function Content({ state }: { state: ChaxterState }) {
   return (
     <VStack spacing={8} padding={12} activityBackgroundTint={{ light: "clear", dark: "clear" }}>
+      {state.clockIn ? <ClockInButton url={state.clockIn} height={44} /> : null}
       <Buttons state={state} height={60} />
       {state.message ? <ErrorLine message={state.message} /> : null}
     </VStack>
@@ -86,6 +103,7 @@ const builder: LiveActivityUIBuilder<ChaxterState> = (state) => (
   >
     <LiveActivityUIExpandedBottom>
       <VStack spacing={6}>
+        {state.clockIn ? <ClockInButton url={state.clockIn} height={40} /> : null}
         <Buttons state={state} height={52} />
         {state.message ? <ErrorLine message={state.message} /> : null}
       </VStack>

@@ -21,6 +21,15 @@ export const RUNNER_KEY = "chaxterlog.runner"
 // music, "nowPlaying" silent audio as the Now Playing app (stops other music), "off" none.
 export const AUDIO_MODE: "mix" | "nowPlaying" | "off" = "mix"
 
+// Clock-in reminder. Arriving at work (a Shortcuts automation opens the arrive link, see README)
+// shows an "Einstempeln" button that stays until it is tapped, and reminders follow after these
+// minutes. The button opens CLOCK_IN_URL, the login page of the time tracking system.
+export const CLOCK_IN_URL = ""
+export const REMINDER_MINUTES = [10, 20, 30]
+const ARRIVED_KEY = "chaxterlog.arrivedOn"
+const CLOCKED_IN_KEY = "chaxterlog.clockedInOn"
+const CLOCK_IN_LINK_KEY = "chaxterlog.clockInLink"
+
 export type ChaxterState = {
   u15: number
   o15: number
@@ -31,6 +40,8 @@ export type ChaxterState = {
   message: string
   // Which button just succeeded ("u15", "o15", "undo", "refresh") or "error"; "" when idle.
   flash: Flash
+  // Link behind the "Einstempeln" button; empty or missing hides the button.
+  clockIn?: string
 }
 export type Flash = "" | "u15" | "o15" | "undo" | "refresh" | "error"
 // How long a confirmed tap stays highlighted before the activity returns to normal.
@@ -44,3 +55,19 @@ export const isToken = (value: string) => /^chx_[0-9a-f]{64}$/.test(value)
 
 const pad = (value: number) => String(value).padStart(2, "0")
 export const clock = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+
+// Days are the phone's calendar days, so the clock-in button starts fresh every morning.
+export const today = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+export const markArrived = (link: string) => {
+  Storage.set(ARRIVED_KEY, today(), SHARED)
+  Storage.set(CLOCK_IN_LINK_KEY, link, SHARED)
+}
+export const markClockedIn = () => Storage.set(CLOCKED_IN_KEY, today(), SHARED)
+export const clearArrival = () => Storage.set(ARRIVED_KEY, "", SHARED)
+// The button shows from today's arrival until today's clock-in.
+export const clockInPending = () => Storage.get<string>(ARRIVED_KEY, SHARED) === today() && Storage.get<string>(CLOCKED_IN_KEY, SHARED) !== today()
+export const withClockIn = (state: ChaxterState): ChaxterState =>
+  ({ ...state, clockIn: clockInPending() ? Storage.get<string>(CLOCK_IN_LINK_KEY, SHARED) ?? "" : "" })

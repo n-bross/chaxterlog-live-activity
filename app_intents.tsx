@@ -1,6 +1,6 @@
 import { AppIntentManager, AppIntentProtocol, LiveActivity } from "scripting"
 import { callApi, type ApiResult } from "./api"
-import { ACTIVITY_NAME, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, SHARED, TAP_KEY, clock, type ChaxterState, type Flash } from "./config"
+import { ACTIVITY_NAME, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, SHARED, TAP_KEY, clock, withClockIn, type ChaxterState, type Flash } from "./config"
 
 // No static import of ./live_activity: it imports this file, and the cycle would register the
 // activity twice. The intent host still needs the registered builder before LiveActivity.from can
@@ -19,7 +19,7 @@ async function updateAll(state: ChaxterState) {
   for (const detail of await LiveActivity.getAllActivities()) {
     if (detail.state !== "active") continue
     const activity = await LiveActivity.from(detail.id, ACTIVITY_NAME)
-    if (activity) { await activity.update(state); updated++ }
+    if (activity) { await activity.update(withClockIn(state)); updated++ }
   }
   return updated
 }
