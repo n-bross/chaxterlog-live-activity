@@ -9,18 +9,19 @@ const compile = (file) => ts.transpileModule(readFileSync(join(root, file), 'utf
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
 
-function harness({ action = 'clockIn', resume = false, opened = true, url, fetchFails = false, background = resume } = {}) {
+function harness({ action = 'clockIn', resume = false, opened = true, url, fetchFails = false, background = resume, notificationFailure } = {}) {
   const values = new Map(), calls = []
   let active = true, onResume, config
+  // Scripting exports Notification from its module, rather than as a global.
+  const notifications = {
+    removeAllPendingsOfCurrentScript: async () => { if (notificationFailure === 'clear') throw new Error('Notifications unavailable'); calls.push({ kind: 'clear' }) },
+    removeAllDeliveredsOfCurrentScript: async () => {},
+    schedule: async () => { if (notificationFailure === 'schedule') throw new Error('Notifications denied'); calls.push({ kind: 'schedule' }) },
+  }
   const context = vm.createContext({
     exports: {}, console: { log() {} },
     Storage: { get: (key) => values.get(key), set: (key, value) => values.set(key, value), remove: (key) => values.delete(key) },
     Keychain: { get: () => 'existing-token' },
-    Notification: {
-      removeAllPendingsOfCurrentScript: async () => calls.push({ kind: 'clear' }),
-      removeAllDeliveredsOfCurrentScript: async () => {},
-      schedule: async () => calls.push({ kind: 'schedule' }),
-    },
     TimeIntervalNotificationTrigger: class {},
     Dialog: { alert: async () => calls.push({ kind: 'alert' }) },
     BackgroundKeeper: { keepAlive: async () => { calls.push({ kind: 'keepAlive' }); return true }, stopKeepAlive: async () => {} },
@@ -39,7 +40,7 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
     onResume: (callback) => { onResume = callback; return () => {} },
   }
   context.require = (name) => ({
-    scripting: { Script: script, LiveActivity: {
+    scripting: { Script: script, Notification: notifications, LiveActivity: {
       getAllActivities: async () => active ? [{ id: 'fixture', state: 'active' }] : [],
       from: async () => ({ update: async (state) => calls.push({ kind: 'update', state }) }),
       endAllActivities: async () => { active = false; calls.push({ kind: 'end' }) },
@@ -143,3 +144,12 @@ test('observation export neither opens ZeusX nor starts an arrival', async () =>
   assert.equal(h.calls.filter(call => call.kind === 'copy').length, 1)
   assert.equal(h.calls.filter(call => ['zeus', 'fetch', 'schedule', 'clear'].includes(call.kind)).length, 0)
 })
+
+for (const notificationFailure of ['clear', 'schedule']) {
+  test(`notification ${notificationFailure} failure does not prevent Live Activity startup`, async () => {
+    const h = harness({ action: null, notificationFailure })
+    await h.run()
+    assert.ok(h.calls.some(call => call.kind === 'start' && call.state.clockIn))
+    assert.equal(h.isActive(), true)
+  })
+}

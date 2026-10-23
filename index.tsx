@@ -1,5 +1,6 @@
-// BackgroundKeeper, Dialog, Keychain, Notification and Storage are Scripting globals.
-import { LiveActivity, Script } from "scripting"
+// BackgroundKeeper, Dialog, Keychain and Storage are Scripting globals.
+// Notification is a module export and must be imported explicitly.
+import { LiveActivity, Notification, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
 import { callApi } from "./api"
 import { startSilentAudio } from "./audio"
@@ -48,16 +49,20 @@ async function updateRunning(state: ChaxterState) {
 async function arrive() {
   const link = Script.createRunSingleURLScheme(Script.name, { clockIn: "1" })
   markArrived(link, Script.createRunSingleURLScheme(Script.name, { clockOut: "1" }))
-  await Notification.removeAllPendingsOfCurrentScript()
-  if (!clockInPending()) return
-  for (const minutes of REMINDER_MINUTES) {
-    await Notification.schedule({
-      title: "Einstempeln nicht vergessen",
-      body: `Du bist seit ${minutes} Minuten in der Arbeit. Tippen zum Einstempeln.`,
-      interruptionLevel: "timeSensitive",
-      trigger: new TimeIntervalNotificationTrigger({ timeInterval: minutes * 60, repeats: false }),
-      tapAction: { type: "openURL", url: link },
-    })
+  try {
+    await Notification.removeAllPendingsOfCurrentScript()
+    if (!clockInPending()) return
+    for (const minutes of REMINDER_MINUTES) {
+      await Notification.schedule({
+        title: "Einstempeln nicht vergessen",
+        body: `Du bist seit ${minutes} Minuten in der Arbeit. Tippen zum Einstempeln.`,
+        interruptionLevel: "timeSensitive",
+        trigger: new TimeIntervalNotificationTrigger({ timeInterval: minutes * 60, repeats: false }),
+        tapAction: { type: "openURL", url: link },
+      })
+    }
+  } catch (error) {
+    console.log(`Erinnerungen nicht verfügbar: ${String(error)}`)
   }
 }
 
@@ -217,6 +222,6 @@ async function keepPolling(
 
 main().catch(async (error) => {
   const message = String(error)
-  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.0: ${message}`, SHARED)
-  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.0\n${message}` })
+  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.1: ${message}`, SHARED)
+  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.1\n${message}` })
 }).finally(() => Script.exit())
