@@ -67,6 +67,8 @@ export const markArrived = (link: string) => {
 }
 export const markClockedIn = () => Storage.set(CLOCKED_IN_KEY, today(), SHARED)
 export const clearArrival = () => Storage.set(ARRIVED_KEY, "", SHARED)
+// Whether an arrival link has ever run on this phone, i.e. the automation works.
+export const hasArrivedBefore = () => Storage.get<string>(ARRIVED_KEY, SHARED) != null
 // The button shows from today's arrival until today's clock-in.
 export const clockInPending = () => Storage.get<string>(ARRIVED_KEY, SHARED) === today() && Storage.get<string>(CLOCKED_IN_KEY, SHARED) !== today()
 export const withClockIn = (state: ChaxterState): ChaxterState =>

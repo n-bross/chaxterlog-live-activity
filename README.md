@@ -18,7 +18,7 @@ Mit Scripting PRO läuft `index.tsx` im Hintergrund weiter und fragt alle 15 Sek
 - **Einstempeln:** Nach dem Ankommen steht über den Zählknöpfen ein oranger Knopf „Einstempeln“. Er öffnet `CLOCK_IN_URL` aus `config.ts` (die Login-Seite des Zeitsystems) und verschwindet danach bis zum nächsten Tag. Solange er nicht gedrückt wurde, kommen Erinnerungen nach 10, 20 und 30 Minuten (`REMINDER_MINUTES`) mit Ton und Vibration; Tippen auf die Erinnerung stempelt genauso ein.
 - **Gehen (optional):** Automation „Verlassen“ mit `scripting://run_single/ChaxterLog?leave=1` beendet die Live Activity und offene Erinnerungen.
 
-Heißt das Skript in Scripting anders als „ChaxterLog“, stehen die passenden Links beim Start von `index.tsx` im Log.
+Einfacher: `index.tsx` von Hand starten. Solange noch keine Ankunft ankam, fragt das Skript „Automatisch starten beim Ankommen?“ und kopiert den passenden Link (mit dem Namen, unter dem das Skript installiert ist) in die Zwischenablage. Automationen lassen sich bei iOS nicht als Datei verschicken, sie müssen auf dem iPhone angelegt werden. Die Links stehen außerdem bei jedem Start im Log.
 
 ## Aufbau
 

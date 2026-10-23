@@ -5,7 +5,7 @@ import { callApi } from "./api"
 import { startSilentAudio } from "./audio"
 import {
   ACTIVITY_NAME, BACKGROUND_POLLING, CLOCK_IN_URL, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, POLL_DEBUG_KEY, REMINDER_MINUTES, RUNNER_KEY, SHARED, TAP_KEY,
-  clearArrival, clearToken, clock, clockInPending, isToken, markArrived, markClockedIn, readToken, saveToken, withClockIn, type ChaxterState,
+  clearArrival, clearToken, clock, clockInPending, hasArrivedBefore, isToken, markArrived, markClockedIn, readToken, saveToken, withClockIn, type ChaxterState,
 } from "./config"
 
 const POLL_MS = 15_000
@@ -81,6 +81,26 @@ async function leave() {
   try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
 }
 
+// Helps set up the arrival automation until it has run once: copies the exact link (with this
+// script's installed name) and explains where to paste it. "Schon eingerichtet" stops the question.
+const SETUP_SKIPPED_KEY = "chaxterlog.setupSkipped"
+async function offerSetup() {
+  if (hasArrivedBefore() || Storage.get<boolean>(SETUP_SKIPPED_KEY, SHARED)) return
+  const choice = await Dialog.actionSheet({
+    title: "Automatisch starten beim Ankommen?",
+    message: "Kopiert den Link für die Kurzbefehle-Automation „Ankommen“.",
+    actions: [{ label: "Ankommen-Link kopieren" }, { label: "Gehen-Link kopieren" }, { label: "Schon eingerichtet" }],
+  })
+  if (choice === 2) Storage.set(SETUP_SKIPPED_KEY, true, SHARED)
+  if (choice !== 0 && choice !== 1) return
+  const arriving = choice === 0
+  await Pasteboard.setString(Script.createRunSingleURLScheme(Script.name, arriving ? { arrive: "1" } : { leave: "1" }))
+  await Dialog.alert({
+    title: "Link kopiert",
+    message: `Kurzbefehle → Automation → + → „${arriving ? "Ankommen" : "Verlassen"}“ → Arbeitsort wählen → „Sofort ausführen“ → Weiter → Aktion „URL öffnen“ → Link einfügen → Fertig.`,
+  })
+}
+
 async function main() {
   const params = Script.queryParameters ?? {}
   if (flag(params.leave)) return leave()
@@ -96,6 +116,7 @@ async function main() {
   console.log(`Ankommen: ${Script.createRunSingleURLScheme(Script.name, { arrive: "1" })}`)
   console.log(`Gehen: ${Script.createRunSingleURLScheme(Script.name, { leave: "1" })}`)
   if (!await ensureToken()) return
+  if (!flag(params.arrive) && !clockingIn) await offerSetup()
   const first = await callApi("/today")
   if (!first.ok) {
     // A rejected token is removed, so the next run asks for a new one.
