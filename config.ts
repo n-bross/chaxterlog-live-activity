@@ -12,9 +12,14 @@ const TOKEN_KEY = "chaxterlog.token"
 export const SHARED = { shared: true }
 export const LAST_STATE_KEY = "chaxterlog.lastState"
 export const DEBUG_KEY = "chaxterlog.debug"
+// Time and result of the last background poll, shown in the log on the next start.
+export const POLL_DEBUG_KEY = "chaxterlog.lastPoll"
 export const TAP_KEY = "chaxterlog.lastTap"
 // A new run of index.tsx stores its id here; an older polling loop sees the change and ends.
 export const RUNNER_KEY = "chaxterlog.runner"
+// How the polling loop stays awake in the background (see audio.ts): "mix" silent audio alongside
+// music, "nowPlaying" silent audio as the Now Playing app (stops other music), "off" none.
+export const AUDIO_MODE: "mix" | "nowPlaying" | "off" = "mix"
 
 export type ChaxterState = {
   u15: number
