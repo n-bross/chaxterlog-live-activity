@@ -75,6 +75,23 @@ function ClockInButton({ url, height }: { url: string; height: number }) {
   )
 }
 
+// After clocking in: a quieter button in the Undo style that stays until clocked out.
+function ClockOutButton({ url, height }: { url: string; height: number }) {
+  return (
+    <Link url={url}>
+      <HStack spacing={6} frame={{ maxWidth: "infinity", minHeight: height, maxHeight: height }} background={{ style: CONTROL, shape: "capsule" }}>
+        <Image systemName="rectangle.portrait.and.arrow.right" font={14} foregroundStyle="white" />
+        <Text font={14} fontWeight="semibold" foregroundStyle="white">Ausstempeln</Text>
+      </HStack>
+    </Link>
+  )
+}
+
+// A plain function, not a component, so "no button" is a null child rather than an empty view.
+const clockButton = (state: ChaxterState, large: boolean) =>
+  state.clockIn ? <ClockInButton url={state.clockIn} height={large ? 44 : 40} />
+    : state.clockOut ? <ClockOutButton url={state.clockOut} height={large ? 34 : 32} /> : null
+
 // Only errors get a line; when everything works the activity is just the three buttons.
 function ErrorLine({ message }: { message: string }) {
   return (
@@ -87,7 +104,7 @@ function ErrorLine({ message }: { message: string }) {
 function Content({ state }: { state: ChaxterState }) {
   return (
     <VStack spacing={8} padding={12} activityBackgroundTint={{ light: "clear", dark: "clear" }}>
-      {state.clockIn ? <ClockInButton url={state.clockIn} height={44} /> : null}
+      {clockButton(state, true)}
       <Buttons state={state} height={60} />
       {state.message ? <ErrorLine message={state.message} /> : null}
     </VStack>
@@ -103,7 +120,7 @@ const builder: LiveActivityUIBuilder<ChaxterState> = (state) => (
   >
     <LiveActivityUIExpandedBottom>
       <VStack spacing={6}>
-        {state.clockIn ? <ClockInButton url={state.clockIn} height={40} /> : null}
+        {clockButton(state, false)}
         <Buttons state={state} height={52} />
         {state.message ? <ErrorLine message={state.message} /> : null}
       </VStack>
