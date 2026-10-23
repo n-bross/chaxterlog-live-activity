@@ -1,11 +1,12 @@
-import { BackgroundKeeper, LiveActivity, Script } from "scripting"
+// BackgroundKeeper, Dialog, Keychain and Storage are Scripting globals, not module exports.
+import { LiveActivity, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
 import { callApi } from "./api"
 import { LAST_STATE_KEY, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
 
 const POLL_MS = 15_000
 const MAX_RUNTIME_MS = 8 * 60 * 60 * 1000 // iOS ends Live Activities after 8 hours anyway.
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(() => resolve(), ms))
 // Compares totals and change time only, so the "Stand" time shows the last real update, not every poll.
 const totals = ({ refreshedAt: _, ...rest }: ChaxterState) => JSON.stringify(rest)
 
