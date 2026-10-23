@@ -29,7 +29,7 @@ Die Stempelknöpfe und Erinnerungen verwenden `run_single` mit dem tatsächlich 
 
 ## Eingebaute ZeusX-Beobachtung
 
-Der Beobachter erfasst ausschließlich deinen eigenen Kommt/Geht-Tipp und den danach sichtbaren Bereich `TerminalResult` oberhalb des Knopfs. Die Aufzeichnung liegt im selben ChaxterLog-Projekt auf dem iPhone; Login-Eingaben und Cookies werden nicht gelesen. Die normale WebView-Sitzung bleibt lokal erhalten, damit du dich nicht bei jedem Aufruf neu anmelden musst. Kein Skript drückt Stempelknöpfe oder führt Buchungen im Hintergrund aus.
+Der Beobachter erfasst ausschließlich deinen eigenen Kommt/Geht-Tipp und den danach sichtbaren Bereich `TerminalResult` oberhalb des Knopfs. Die letzten 20 aufgezeichneten ZeusX-Sitzungen bleiben gemeinsam im selben ChaxterLog-Projekt auf dem iPhone gespeichert; Login-Eingaben und Cookies werden nicht gelesen. Die normale WebView-Sitzung bleibt lokal erhalten, damit du dich nicht bei jedem Aufruf neu anmelden musst. Kein Skript drückt Stempelknöpfe oder führt Buchungen im Hintergrund aus.
 
 Nach dem Schließen der Webseite kannst du direkt **ZeusX-Aufzeichnung kopieren** wählen. Alternativ später die Scripting-Kurzbefehl-Aktion für ChaxterLog mit dem Text **protokoll** starten oder `scripting://run_single/ChaxterLog?zeusLog=1` öffnen. Bei einem anderen installierten Projektnamen den Namen im Link entsprechend anpassen.
 
@@ -58,7 +58,7 @@ Automationen werden weiterhin auf dem iPhone eingerichtet. In der englischen Kur
 
 Mit installiertem TypeScript: `node --test tests/*.test.cjs`. Die Tests prüfen den gemeinsamen beobachteten ZeusX-Aufruf, das Behalten der Knöpfe bei Abbruch, das Entfernen von Einstempeln erst nach Bestätigung, Ausstempeln erst nach Verlassen, das Ende der Activity sowie Aufzeichnung, Export und Kurzbefehl-Aufrufe. Es werden keine echten Stempelungen ausgelöst.
 
-Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.3 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
+Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.4 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
 
 ## Startkorrektur in 1.3.1
 
@@ -77,3 +77,9 @@ Zum Prüfen: vorhandenes ChaxterLog-Projekt auf **1.3.2** aktualisieren, `index.
 Nach **Ja, ausgestempelt** wird die Activity jetzt mit `dismissTimeInterval: 0` sofort vom Sperrbildschirm entfernt. Ohne diese Option konnte die bereits beendete Anzeige noch mehrere Stunden sichtbar bleiben. Fehler beim Löschen von Erinnerungen verhindern das Entfernen nicht mehr. Auch beim Ersetzen einer alten Activity und beim Verlassen ohne offene Ausstempelung wird die alte Anzeige sofort entfernt.
 
 Das vorhandene Projekt auf **1.3.3** aktualisieren und `index.tsx` einmal neu starten. Die bisherigen Kurzbefehl-Links bleiben gleich. Der Abschluss erfolgt weiterhin nach deiner eigenen ZeusX-Buchung und der Bestätigung **Ja, ausgestempelt**; es werden keine Buchungen automatisch ausgeführt.
+
+## Beobachtungsverlauf in 1.3.4
+
+Ein- und Ausstempeln sowie weitere Versuche werden jetzt sitzungsübergreifend gespeichert. **ZeusX-Aufzeichnung kopieren** exportiert den gesamten Verlauf gemeinsam (`zeus-observations/v2`). Du musst nach dem Einstempeln nichts schicken; ein gemeinsamer Export nach dem Ausstempeln reicht. Aufgezeichnet wird weiterhin ausschließlich innerhalb der über ChaxterLog geöffneten ZeusX-Seite, nicht in anderen Browsern oder bei geschlossenem Skript.
+
+Gespeichert werden die neuesten **20 Sitzungen mit Ereignissen**, je höchstens 100 Ereignisse. Ein Öffnen ohne erfassten Stempelklick ersetzt keine frühere Aufzeichnung. Eine noch vorhandene Aufzeichnung aus Version 1.3.3 oder älter wird beim Upgrade übernommen; bereits überschriebene alte Sitzungen lassen sich nicht wiederherstellen. Login-Eingaben und Cookies bleiben ausgeschlossen.

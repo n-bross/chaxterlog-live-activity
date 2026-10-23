@@ -8,8 +8,8 @@ const compile = (file) => ts.transpileModule(readFileSync(join(__dirname, '..', 
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
 
-function harness({ choices = [0], load = true, captured = true } = {}) {
-  const storage = new Map(), calls = []
+function harness({ choices = [0], load = true, captured = true, storage = new Map() } = {}) {
+  const calls = []
   const observer = { exports: {} }
   vm.runInNewContext(compile('zeus-observer.ts'), observer)
   let handler, disposed = false
@@ -39,7 +39,7 @@ test('clock-in and observation share one embedded ZeusX page and local record', 
   assert.equal(await h.api.openZeusObserved('in'), true)
   assert.equal(h.disposed(), true)
   assert.equal(h.calls.filter(call => call.kind === 'load').length, 1)
-  const saved = [...h.storage.values()][0]
+  const saved = [...h.storage.values()][0].captures[0]
   assert.equal(saved.action, 'in')
   assert.equal(saved.records[0].result.text, 'fixture-response')
   assert.equal(JSON.stringify(saved).includes('must-not-save'), false)
@@ -62,4 +62,48 @@ test('an unreachable ZeusX page never completes the flow', async () => {
   assert.equal(await h.api.openZeusObserved('in'), false)
   assert.equal(h.calls.some(call => call.kind === 'choice'), false)
   assert.equal(h.disposed(), true)
+})
+
+test('export retains clock-in and clock-out in one observation history', async () => {
+  const first = harness()
+  await first.api.openZeusObserved('in')
+  const second = harness({ storage: first.storage })
+  await second.api.openZeusObserved('out')
+  await second.api.copyZeusObservation()
+  const exported = JSON.parse(second.calls.find(call => call.kind === 'copy').text)
+  assert.equal(exported.schema, 'zeus-observations/v2')
+  assert.deepEqual(exported.captures.map(capture => capture.action), ['in', 'out'])
+})
+
+test('an existing v1 recording survives the history upgrade', async () => {
+  const legacy = { schema: 'zeus-observation/v1', action: 'in', startedAt: '2026-10-23T06:00:00Z', records: [{ kind: 'tap', button: 'Kommt/Geht' }] }
+  const storage = new Map([['chaxterlog.zeus.observation.v1', legacy]])
+  const h = harness({ storage })
+  await h.api.openZeusObserved('out')
+  await h.api.copyZeusObservation()
+  const history = JSON.parse(h.calls.find(call => call.kind === 'copy').text)
+  assert.equal(history.captures[0].startedAt, legacy.startedAt)
+  assert.deepEqual(history.captures.map(capture => capture.action), ['in', 'out'])
+})
+
+test('opening ZeusX without a recorded event keeps previous sessions', async () => {
+  const first = harness()
+  await first.api.openZeusObserved('in')
+  const h = harness({ storage: first.storage, captured: false, choices: [1] })
+  await h.api.openZeusObserved('out')
+  await h.api.copyZeusObservation()
+  const history = JSON.parse(h.calls.find(call => call.kind === 'copy').text)
+  assert.deepEqual(history.captures.map(capture => capture.action), ['in'])
+})
+
+test('history retains the latest twenty observed sessions', async () => {
+  const captures = Array.from({ length: 20 }, (_, i) => ({ schema: 'zeus-observation/v1', action: 'in', startedAt: String(i), records: [{ kind: 'tap' }] }))
+  const storage = new Map([['chaxterlog.zeus.observations.v2', { schema: 'zeus-observations/v2', captures }]])
+  const h = harness({ storage })
+  await h.api.openZeusObserved('out')
+  await h.api.copyZeusObservation()
+  const history = JSON.parse(h.calls.find(call => call.kind === 'copy').text)
+  assert.equal(history.captures.length, 20)
+  assert.equal(history.captures[0].startedAt, '1')
+  assert.equal(history.captures[19].action, 'out')
 })

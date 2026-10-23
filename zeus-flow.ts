@@ -2,21 +2,33 @@
 import { CLOCK_IN_URL, SHARED } from "./config"
 import { OBSERVER_SCRIPT, normalizeObservation, type Observation } from "./zeus-observer"
 
-const KEY = "chaxterlog.zeus.observation.v1"
+const LEGACY_KEY = "chaxterlog.zeus.observation.v1"
+const HISTORY_KEY = "chaxterlog.zeus.observations.v2"
+const MAX_CAPTURES = 20
 type Capture = { schema: "zeus-observation/v1"; action: "in" | "out"; startedAt: string; records: Observation[] }
 
+type CaptureHistory = { schema: "zeus-observations/v2"; captures: Capture[] }
+
+function readCaptures(): Capture[] {
+  const history = Storage.get<CaptureHistory>(HISTORY_KEY, SHARED)
+  if (history?.schema === "zeus-observations/v2" && Array.isArray(history.captures)) return history.captures.slice(-MAX_CAPTURES)
+  const legacy = Storage.get<Capture>(LEGACY_KEY, SHARED)
+  return legacy?.records?.length ? [legacy] : []
+}
+
 export async function copyZeusObservation() {
-  const capture = Storage.get<Capture>(KEY, SHARED)
-  if (!capture?.records.length) {
+  const captures = readCaptures()
+  if (!captures.length) {
     await Dialog.alert({ title: "Keine ZeusX-Aufzeichnung", message: "Öffne ZeusX über Einstempeln oder Ausstempeln und führe deine reguläre Buchung dort selbst aus." })
     return
   }
-  await Pasteboard.setString(JSON.stringify(capture, null, 2))
-  await Dialog.alert({ title: "ZeusX-Aufzeichnung kopiert", message: "Du kannst den Text im Chat einfügen. Login-Eingaben und Cookies werden nicht aufgezeichnet." })
+  await Pasteboard.setString(JSON.stringify({ schema: "zeus-observations/v2", captures }, null, 2))
+  await Dialog.alert({ title: "ZeusX-Aufzeichnung kopiert", message: `${captures.length} ZeusX-Sitzung(en) kopiert, einschließlich Ein- und Ausstempeln. Du kannst den Text später gemeinsam im Chat einfügen. Login-Eingaben und Cookies werden nicht aufgezeichnet.` })
 }
 
 export async function openZeusObserved(action: "in" | "out"): Promise<boolean> {
   const capture: Capture = { schema: "zeus-observation/v1", action, startedAt: new Date().toISOString(), records: [] }
+  const previous = readCaptures()
   let browser: WebViewController | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let closed = false
@@ -29,7 +41,7 @@ export async function openZeusObserved(action: "in" | "out"): Promise<boolean> {
       const record = normalizeObservation(input)
       if (!record) return
       capture.records.push(record)
-      Storage.set(KEY, { ...capture, records: capture.records.slice() }, SHARED)
+      Storage.set(HISTORY_KEY, { schema: "zeus-observations/v2", captures: [...previous, { ...capture, records: capture.records.slice() }].slice(-MAX_CAPTURES) }, SHARED)
     })
     browser.shouldAllowRequest = async ({ url }) => url.startsWith("https://zeiterfassung.grafing.de/")
     if (!CLOCK_IN_URL || !await browser.loadURL(CLOCK_IN_URL)) throw new Error("ZeusX konnte nicht geladen werden.")
