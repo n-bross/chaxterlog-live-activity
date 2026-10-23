@@ -1,6 +1,7 @@
 import {
   Button,
   HStack,
+  Image,
   LiveActivity,
   LiveActivityUI,
   LiveActivityUIBuilder,
@@ -14,16 +15,34 @@ import {
 import { CountIntent, RefreshIntent, UndoIntent } from "./app_intents"
 import { ACTIVITY_NAME, type ChaxterState } from "./config"
 
-const PETROL = "#00698c", DEEP = "#004f6a", YELLOW = "#fffd24"
+// The website's counter colours: U15 petrol, Ü15 yellow, Undo a white key with the undo arrow.
+const PETROL = "#007ca5", YELLOW = "#fffd24", YELLOW_INK = "#10222b", INK = "#151515"
+const STYLE = {
+  u15: { background: PETROL, text: "white", accent: YELLOW },
+  o15: { background: YELLOW, text: YELLOW_INK, accent: PETROL },
+} as const
 const tile = (color: string) => ({ style: color, shape: { type: "rect", cornerRadius: 14, style: "continuous" } } as const)
 
 function CountButton({ label, value, group }: { label: string; value: number; group: "u15" | "o15" }) {
+  const style = STYLE[group]
   return (
     <Button intent={CountIntent({ group })} buttonStyle="plain">
-      <VStack spacing={2} padding={10} frame={{ maxWidth: "infinity" }} background={tile(PETROL)}>
-        <Text font={12} foregroundStyle="white">{label}</Text>
-        <Text font={26} fontWeight="bold" foregroundStyle="white">{String(value)}</Text>
-        <Text font={11} fontWeight="bold" foregroundStyle={YELLOW}>+1</Text>
+      <VStack spacing={2} padding={10} frame={{ maxWidth: "infinity" }} background={tile(style.background)}>
+        <Text font={12} fontWeight="semibold" foregroundStyle={style.text}>{label}</Text>
+        <Text font={26} fontWeight="bold" foregroundStyle={style.text}>{String(value)}</Text>
+        <Text font={11} fontWeight="bold" foregroundStyle={style.accent}>+1</Text>
+      </VStack>
+    </Button>
+  )
+}
+
+function UndoButton() {
+  return (
+    <Button intent={UndoIntent(undefined)} buttonStyle="plain">
+      <VStack padding={10} frame={{ minWidth: 58, maxWidth: 58, maxHeight: "infinity" }} background={tile("white")}>
+        <Spacer />
+        <Image systemName="arrow.uturn.backward" font={22} fontWeight="semibold" foregroundStyle={INK} />
+        <Spacer />
       </VStack>
     </Button>
   )
@@ -37,18 +56,13 @@ function Content({ state }: { state: ChaxterState }) {
         <Spacer />
         <Text font={11} foregroundStyle="#6f6f6f">{`Gesamt ${state.total} · geändert ${state.changedAt}`}</Text>
         <Button intent={RefreshIntent(undefined)} buttonStyle="plain">
-          <Text font={15} fontWeight="bold" foregroundStyle={PETROL}>↻</Text>
+          <Image systemName="arrow.clockwise" font={14} fontWeight="semibold" foregroundStyle={PETROL} />
         </Button>
       </HStack>
       <HStack spacing={8}>
+        <UndoButton />
         <CountButton label="U15" value={state.u15} group="u15" />
         <CountButton label="Ü15" value={state.o15} group="o15" />
-        <Button intent={UndoIntent(undefined)} buttonStyle="plain">
-          <VStack spacing={2} padding={10} frame={{ width: 64 }} background={tile(DEEP)}>
-            <Text font={22} fontWeight="bold" foregroundStyle="white">↶</Text>
-            <Text font={11} fontWeight="bold" foregroundStyle={YELLOW}>zurück</Text>
-          </VStack>
-        </Button>
       </HStack>
       <Text font={10} foregroundStyle={state.message ? "#c4372b" : "#6f6f6f"}>
         {state.message || `Stand ${state.refreshedAt}`}
@@ -72,9 +86,9 @@ const builder: LiveActivityUIBuilder<ChaxterState> = (state) => (
     </LiveActivityUIExpandedTrailing>
     <LiveActivityUIExpandedBottom>
       <HStack spacing={8}>
+        <Button title="" systemImage="arrow.uturn.backward" intent={UndoIntent(undefined)} />
         <Button title="U15 +1" intent={CountIntent({ group: "u15" })} />
         <Button title="Ü15 +1" intent={CountIntent({ group: "o15" })} />
-        <Button title="↶" intent={UndoIntent(undefined)} />
         <Button title="↻" intent={RefreshIntent(undefined)} />
       </HStack>
     </LiveActivityUIExpandedBottom>
