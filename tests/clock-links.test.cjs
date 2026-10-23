@@ -112,16 +112,20 @@ test('a plain shortcut start shows clock-in and sets fresh single-run links', as
 })
 
 
-test('clock-out appears only after leaving the workplace', async () => {
-  const h = harness({ action: 'leave' })
-  h.config.markClockedIn()
-  await h.run()
-  assert.equal(h.isActive(), true)
-  const update = h.calls.find(call => call.kind === 'update')
-  assert.equal(update.state.clockIn, '')
-  assert.equal(update.state.clockOut, 'old-clock-out-link')
-  assert.equal(h.calls.filter(call => call.kind === 'zeus').length, 0)
-})
+for (const resume of [false, true]) {
+  test(`leaving reveals clock-out (${resume ? 'resume' : 'fresh'})`, async () => {
+    const h = harness({ action: 'leave', resume })
+    h.config.markClockedIn()
+    await h.run()
+    assert.equal(h.isActive(), true)
+    const update = h.calls.find(call => call.kind === 'update')
+    assert.ok(update, 'the existing Live Activity must be updated')
+    assert.equal(update.state.clockIn, '')
+    assert.equal(update.state.clockOut, h.config.clockOutLink())
+    assert.equal(h.config.arrivedToday(), false)
+    assert.equal(h.calls.filter(call => call.kind === 'zeus').length, 0)
+  })
+}
 
 test('a fresh clock-in link keeps the count polling loop alive', async () => {
   const h = harness({ background: true })
@@ -152,4 +156,16 @@ for (const notificationFailure of ['clear', 'schedule']) {
     assert.ok(h.calls.some(call => call.kind === 'start' && call.state.clockIn))
     assert.equal(h.isActive(), true)
   })
+}
+
+for (const resume of [false, true]) {
+  for (const notificationFailure of ['clear', 'schedule']) {
+    test(`leaving still shows clock-out when notifications ${notificationFailure} fails (${resume ? 'resume' : 'fresh'})`, async () => {
+      const h = harness({ action: 'leave', resume, notificationFailure })
+      h.config.markClockedIn()
+      await h.run()
+      assert.equal(h.isActive(), true)
+      assert.ok(h.calls.some(call => call.kind === 'update' && call.state.clockOut && !call.state.clockIn))
+    })
+  }
 }

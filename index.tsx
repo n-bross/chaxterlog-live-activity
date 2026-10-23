@@ -105,19 +105,27 @@ async function resumePolling() {
 async function leave() {
   Storage.set(RUNNER_KEY, "", SHARED)
   clearArrival()
-  await Notification.removeAllPendingsOfCurrentScript()
-  if (clockOutPending()) {
-    await Notification.schedule({
-      title: "Ausstempeln nicht vergessen",
-      body: "Du hast die Arbeit verlassen. Tippen zum Ausstempeln.",
-      interruptionLevel: "timeSensitive",
-      tapAction: { type: "openURL", url: clockOutLink() },
-    })
+  const pending = clockOutPending()
+  // The button must change even when notification permission is denied or scheduling fails.
+  if (pending) {
     const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
     if (last) await updateRunning(last)
-    return
+  } else {
+    try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
   }
-  try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
+  try {
+    await Notification.removeAllPendingsOfCurrentScript()
+    if (pending) {
+      await Notification.schedule({
+        title: "Ausstempeln nicht vergessen",
+        body: "Du hast die Arbeit verlassen. Tippen zum Ausstempeln.",
+        interruptionLevel: "timeSensitive",
+        tapAction: { type: "openURL", url: clockOutLink() },
+      })
+    }
+  } catch (error) {
+    console.log(`Erinnerungen nicht verfügbar: ${String(error)}`)
+  }
 }
 
 async function main() {
@@ -184,6 +192,7 @@ async function keepPolling(
   // While this run is alive, the Einstempeln button and the reminders reach it here instead of
   // starting a second run.
   const stopListening = Script.onResume(async ({ queryParameters }) => {
+    if (flag(queryParameters?.leave)) return leave()
     if (flag(queryParameters?.arrive)) {
       await arrive()
       const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
@@ -222,6 +231,6 @@ async function keepPolling(
 
 main().catch(async (error) => {
   const message = String(error)
-  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.1: ${message}`, SHARED)
-  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.1\n${message}` })
+  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.2: ${message}`, SHARED)
+  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.2\n${message}` })
 }).finally(() => Script.exit())

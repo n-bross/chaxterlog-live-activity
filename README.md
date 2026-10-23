@@ -58,10 +58,16 @@ Automationen werden weiterhin auf dem iPhone eingerichtet. In der englischen Kur
 
 Mit installiertem TypeScript: `node --test tests/*.test.cjs`. Die Tests prüfen den gemeinsamen beobachteten ZeusX-Aufruf, das Behalten der Knöpfe bei Abbruch, das Entfernen von Einstempeln erst nach Bestätigung, Ausstempeln erst nach Verlassen, das Ende der Activity sowie Aufzeichnung, Export und Kurzbefehl-Aufrufe. Es werden keine echten Stempelungen ausgelöst.
 
-Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.1 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
+Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.2 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
 
 ## Startkorrektur in 1.3.1
 
 `Notification` wird ausdrücklich aus `scripting` importiert. Dadurch entfallen die Compile-Fehler „Cannot find name Notification“, die den Start verhindert haben. Fehler beim Planen der Ankunftserinnerungen werden außerdem protokolliert und verhindern nicht mehr den Start der Live Activity.
 
 Das vorhandene Projekt in Scripting aus diesem Repository aktualisieren und danach `index.tsx` mit ▶ starten. Die Versionsnummer muss **1.3.1** sein. ZeusX-Beobachtung ist bereits in diesem Projekt enthalten.
+
+## Verlassen-Korrektur in 1.3.2
+
+Der Verlassen-Aufruf wird jetzt auch behandelt, wenn ein `scripting://run/ChaxterLog?leave=1`-Link das bereits laufende Skript fortsetzt. Zuvor wurde `leave` in diesem Fall ignoriert. Der empfohlene Link bleibt `scripting://run_single/ChaxterLog?leave=1`; dieser startet den Ablauf neu. Der Ausstempeln-Knopf wird vor der Erinnerung aktualisiert und bleibt auch bei einem Fehler der Benachrichtigungen sichtbar.
+
+Zum Prüfen: vorhandenes ChaxterLog-Projekt auf **1.3.2** aktualisieren, `index.tsx` starten und nach deiner eigenen regulären ZeusX-Buchung **Ja, eingestempelt** bestätigen. Jetzt bleiben die drei Zählknöpfe. Den Verlassen-Kurzbefehl ausführen: **Ausstempeln** muss erscheinen. Nach eigener Ausstempelung und **Ja, ausgestempelt** endet die Activity. Ohne zuvor bestätigtes Einstempeln beendet Verlassen die Activity direkt.
