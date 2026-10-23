@@ -15,6 +15,7 @@ import { CountIntent, UndoIntent } from "./app_intents";
 // KONFIGURATION
 export const BASE_URL = "https://chaxterlog.jufo-grafing.de/api/v1";
 export const TOKEN = "chx_3a00c90b55c8faa679d2b8db0bef7d7e49ce1a150646c075253fa43940c61858";
+export const ACTIVITY_NAME = "ChaxterLogActivity";
 
 export interface ChaxterState {
   u15: number;
@@ -24,7 +25,7 @@ export interface ChaxterState {
 }
 
 export const chaxterActivity = LiveActivity.register<ChaxterState>(
-  "ChaxterLogActivity",
+  ACTIVITY_NAME,
   (state: ChaxterState) => {
     return (
       <LiveActivityUI

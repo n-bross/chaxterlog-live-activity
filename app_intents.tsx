@@ -1,5 +1,5 @@
-import { AppIntentManager, AppIntentProtocol } from "scripting";
-import { chaxterActivity, BASE_URL, TOKEN } from "./live_activity";
+import { AppIntentManager, AppIntentProtocol, LiveActivity } from "scripting";
+import { BASE_URL, TOKEN, ACTIVITY_NAME } from "./live_activity";
 
 async function apiCall(endpoint: string, method: string, body?: Record<string, unknown>) {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -13,6 +13,21 @@ async function apiCall(endpoint: string, method: string, body?: Record<string, u
   return await response.json();
 }
 
+async function updateAllRunning(res: any) {
+  const activities = await LiveActivity.getAllActivities();
+  for (const act of activities) {
+    if (act.state === "active") {
+      const handle = LiveActivity.from(act.id, ACTIVITY_NAME);
+      await handle.update({
+        u15: res.u15 ?? 0,
+        o15: res.o15 ?? 0,
+        total: res.total ?? 0,
+        lastUpdate: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+      });
+    }
+  }
+}
+
 export const CountIntent = AppIntentManager.register({
   name: "ChaxterCountIntent",
   protocol: AppIntentProtocol.LiveActivityIntent,
@@ -20,13 +35,7 @@ export const CountIntent = AppIntentManager.register({
     if (!params?.group) return;
     const res = await apiCall("/visit", "POST", { group: params.group });
     if (!res.error) {
-      const controller = chaxterActivity();
-      await controller.update({
-        u15: res.u15 ?? 0,
-        o15: res.o15 ?? 0,
-        total: res.total ?? 0,
-        lastUpdate: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      });
+      await updateAllRunning(res);
     }
   },
 });
@@ -37,13 +46,7 @@ export const UndoIntent = AppIntentManager.register({
   perform: async (_params: Record<string, unknown>) => {
     const res = await apiCall("/undo", "POST", {});
     if (!res.error) {
-      const controller = chaxterActivity();
-      await controller.update({
-        u15: res.u15 ?? 0,
-        o15: res.o15 ?? 0,
-        total: res.total ?? 0,
-        lastUpdate: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      });
+      await updateAllRunning(res);
     }
   },
 });
