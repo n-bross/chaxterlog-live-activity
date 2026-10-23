@@ -8,7 +8,15 @@ const input = (Intent.shortcutParameter?.type === "text" ? String(Intent.shortcu
 const leaving = /geh|leave|verlass/.test(input)
 
 async function run() {
-  await Safari.openURL(Script.createRunSingleURLScheme(Script.name, leaving ? { leave: "1" } : { arrive: "1" }))
+  let opened = false
+  try {
+    opened = await Safari.openURL(Script.createRunSingleURLScheme(Script.name, leaving ? { leave: "1" } : { arrive: "1" }))
+  } catch { /* Show the same actionable error as a rejected URL. */ }
+  if (!opened) {
+    await Dialog.alert({ title: "ChaxterLog nicht gestartet", message: "Bitte in Kurzbefehle die Scripting-Aktion „Run Script in App“ verwenden und dieses Skript auswählen. Zum Prüfen kannst du index.tsx direkt in Scripting starten." })
+    Script.exit(Intent.text("ChaxterLog konnte nicht gestartet werden."))
+    return
+  }
   Script.exit(Intent.text(leaving ? "ChaxterLog: Gehen" : "ChaxterLog: Ankommen"))
 }
 

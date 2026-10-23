@@ -5,7 +5,7 @@ import { callApi } from "./api"
 import { startSilentAudio } from "./audio"
 import {
   ACTIVITY_NAME, BACKGROUND_POLLING, CLOCK_IN_URL, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, POLL_DEBUG_KEY, REMINDER_MINUTES, RUNNER_KEY, SHARED, TAP_KEY,
-  arrivedToday, clearArrival, clearToken, clock, clockInPending, clockOutLink, clockOutPending, hasArrivedBefore, isToken, markArrived, markClockedIn, markClockedOut, readToken, saveToken, withClockIn, type ChaxterState,
+  arrivedToday, clearArrival, clearToken, clock, clockCheckpoint, clockInPending, clockOutLink, clockOutPending, isToken, markArrived, markClockedIn, markClockedOut, readToken, restoreClockCheckpoint, saveToken, withClockIn, type ChaxterState,
 } from "./config"
 
 const POLL_MS = 15_000
@@ -45,8 +45,8 @@ async function updateRunning(state: ChaxterState) {
 
 // Arriving shows the Einstempeln button and schedules the reminders, unless today is already done.
 async function arrive() {
-  const link = Script.createRunURLScheme(Script.name, { clockIn: "1" })
-  markArrived(link, Script.createRunURLScheme(Script.name, { clockOut: "1" }))
+  const link = Script.createRunSingleURLScheme(Script.name, { clockIn: "1" })
+  markArrived(link, Script.createRunSingleURLScheme(Script.name, { clockOut: "1" }))
   await Notification.removeAllPendingsOfCurrentScript()
   if (!clockInPending()) return
   for (const minutes of REMINDER_MINUTES) {
@@ -71,22 +71,38 @@ async function clockIn() {
 
 async function clockOut() {
   markClockedOut()
+  clearArrival()
+  Storage.set(RUNNER_KEY, "", SHARED)
   await Notification.removeAllPendingsOfCurrentScript()
   await Notification.removeAllDeliveredsOfCurrentScript()
-  const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
-  if (last) await updateRunning(last)
+  await LiveActivity.endAllActivities()
 }
 
-async function openTimeTracking() {
+async function openTimeTracking(action: "in" | "out") {
+  const checkpoint = clockCheckpoint()
+  const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
+  // Update the lock screen and cancel reminders before iOS switches to the browser.
+  // This acknowledges the user's tap, not a confirmed ZeusX booking.
+  if (CLOCK_IN_URL) {
+    if (action === "in") await clockIn()
+    else await clockOut()
+  }
   try {
     if (CLOCK_IN_URL && await Safari.openURL(CLOCK_IN_URL)) return true
   } catch (error) {
     console.log(`Zeitsystem öffnen: ${String(error)}`)
   }
+  restoreClockCheckpoint(checkpoint)
+  if (last) {
+    if (action === "out" && CLOCK_IN_URL) await ChaxterActivity().start(withClockIn(last))
+    else await updateRunning(last)
+  }
+  if (CLOCK_IN_URL && clockInPending()) await arrive()
+  else if (CLOCK_IN_URL && !arrivedToday() && clockOutPending()) await leave()
   await Dialog.alert({
     title: "Zeitsystem nicht geöffnet",
     message: CLOCK_IN_URL
-      ? "Die Seite konnte nicht geöffnet werden. Bitte erneut versuchen. Knopf und Erinnerungen bleiben aktiv."
+      ? "Die Seite konnte nicht geöffnet werden. Bitte erneut versuchen. Der Knopf wurde wiederhergestellt."
       : "Bitte CLOCK_IN_URL in config.ts eintragen. Knopf und Erinnerungen bleiben aktiv.",
   })
   return false
@@ -112,40 +128,25 @@ async function leave() {
   try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
 }
 
-// Helps set up the arrival automation until it has run once: copies the exact link (with this
-// script's installed name) and explains where to paste it. "Schon eingerichtet" stops the question.
-const SETUP_SKIPPED_KEY = "chaxterlog.setupSkipped"
-async function offerSetup() {
-  if (hasArrivedBefore() || Storage.get<boolean>(SETUP_SKIPPED_KEY, SHARED)) return
-  const choice = await Dialog.actionSheet({
-    title: "Automatisch starten beim Ankommen?",
-    message: "Kopiert den Link für die Kurzbefehle-Automation „Ankommen“.",
-    actions: [{ label: "Ankommen-Link kopieren" }, { label: "Gehen-Link kopieren" }, { label: "Schon eingerichtet" }],
-  })
-  if (choice === 2) Storage.set(SETUP_SKIPPED_KEY, true, SHARED)
-  if (choice !== 0 && choice !== 1) return
-  const arriving = choice === 0
-  await Pasteboard.setString(Script.createRunSingleURLScheme(Script.name, arriving ? { arrive: "1" } : { leave: "1" }))
-  await Dialog.alert({
-    title: "Link kopiert",
-    message: `Kurzbefehle → Automation → + → „${arriving ? "Ankommen" : "Verlassen"}“ → Arbeitsort wählen → „Sofort ausführen“ → Weiter → Aktion „URL öffnen“ → Link einfügen → Fertig.`,
-  })
-}
-
 async function main() {
   const params = Script.queryParameters ?? {}
   if (flag(params.leave)) return leave()
-  if (flag(params.arrive)) await arrive()
-  // The reminder is dismissed only after iOS has opened the time tracking page.
   const clockingIn = flag(params.clockIn)
   const clockingOut = flag(params.clockOut)
-  // Clocking out after leaving work: the day is done, so the activity ends instead of restarting.
-  if (clockingOut && !arrivedToday()) {
-    if (!await openTimeTracking()) return
-    await clockOut()
-    try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
+  // A button tap updates the existing activity without needing the count API or restarting it.
+  if (clockingIn) {
+    await openTimeTracking("in")
+    // run_single replaced the old runner, so resume updates on the existing activity.
+    const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
+    const running = (await LiveActivity.getAllActivities()).find((detail) => detail.state === "active")
+    if (last && running) {
+      const activity = await LiveActivity.from(running.id, ACTIVITY_NAME)
+      if (activity) await keepPolling(activity, last)
+    }
     return
   }
+  if (clockingOut) return openTimeTracking("out")
+  if (flag(params.arrive) || Object.keys(params).length === 0) await arrive()
   const lastIntent = Storage.get<string>(DEBUG_KEY, SHARED)
   if (lastIntent) console.log(`Letzter Knopf-Tipp: ${lastIntent}`)
   const lastPoll = Storage.get<string>(POLL_DEBUG_KEY, SHARED)
@@ -154,7 +155,6 @@ async function main() {
   console.log(`Ankommen: ${Script.createRunSingleURLScheme(Script.name, { arrive: "1" })}`)
   console.log(`Gehen: ${Script.createRunSingleURLScheme(Script.name, { leave: "1" })}`)
   if (!await ensureToken()) return
-  if (!flag(params.arrive) && !clockingIn && !clockingOut) await offerSetup()
   const first = await callApi("/today")
   if (!first.ok) {
     // A rejected token is removed, so the next run asks for a new one.
@@ -174,15 +174,20 @@ async function main() {
     return
   }
 
-  // Live Activities can only start while Scripting is open, so the browser opens afterwards.
-  if (clockingIn && await openTimeTracking()) await clockIn()
-  if (clockingOut && await openTimeTracking()) await clockOut()
+  await keepPolling(activity, first.state, runner)
+}
 
+async function keepPolling(
+  activity: { update: (state: ChaxterState) => Promise<unknown> },
+  first: ChaxterState,
+  runner = `${Date.now()}-${Math.random()}`,
+) {
+  Storage.set(RUNNER_KEY, runner, SHARED)
   // Without PRO the script ends here; the activity stays and updates on every tap.
   // With BACKGROUND_POLLING (needs Scripting PRO) changes by other staff also arrive on their own.
   if (!BACKGROUND_POLLING) return
   if (!await BackgroundKeeper.keepAlive()) {
-    await activity.update(withClockIn({ ...first.state, message: "Hintergrundbetrieb nicht verfügbar (Scripting PRO)." }))
+    await activity.update(withClockIn({ ...first, message: "Hintergrundbetrieb nicht verfügbar (Scripting PRO)." }))
     return
   }
   // While this run is alive, the Einstempeln button and the reminders reach it here instead of
@@ -193,12 +198,9 @@ async function main() {
       const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
       if (last) await updateRunning(last)
     }
-    if (flag(queryParameters?.clockIn) && await openTimeTracking()) {
-      await clockIn()
-    }
-    if (flag(queryParameters?.clockOut) && await openTimeTracking()) {
-      await clockOut()
-    }
+    // Compatibility for links stored by older versions; new links always start a fresh run.
+    if (flag(queryParameters?.clockIn)) await openTimeTracking("in")
+    if (flag(queryParameters?.clockOut)) await openTimeTracking("out")
   })
   let stopAudio: (() => Promise<void>) | null = null
   try {
@@ -213,8 +215,9 @@ async function main() {
       const next = await callApi("/today")
       Storage.set(POLL_DEBUG_KEY, `${clock(new Date())} ${next.ok ? `U15 ${next.state.u15} · Ü15 ${next.state.o15}` : next.message}`, SHARED)
       // A tap in progress shows its own result and highlight; the next poll catches up.
+      if (Storage.get<string>(RUNNER_KEY, SHARED) !== runner) break
       if (!next.ok || Date.now() - tappedAt < FLASH_MS + 1000) continue
-      const current = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED) ?? first.state
+      const current = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED) ?? first
       Storage.set(LAST_STATE_KEY, next.state, SHARED)
       if (shown(next.state) !== shown(current)) await activity.update(withClockIn(next.state))
     }

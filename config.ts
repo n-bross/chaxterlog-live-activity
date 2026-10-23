@@ -23,7 +23,7 @@ export const AUDIO_MODE: "mix" | "nowPlaying" | "off" = "mix"
 
 // Clock-in reminder. Arriving at work (a Shortcuts automation opens the arrive link, see README)
 // shows an "Einstempeln" button that stays until it is tapped, and reminders follow after these
-// minutes. After clocking in, a smaller "Ausstempeln" button stays until that is tapped too.
+// minutes. After clocking in only the three counters remain; leaving reveals "Ausstempeln".
 // Both buttons open CLOCK_IN_URL, the time tracking system; nothing is stamped automatically.
 export const CLOCK_IN_URL = "https://zeiterfassung.grafing.de/ZeusX/content/workspace.aspx?id=ac6ee697-ebcd-4323-9acb-cafb0303a9ff"
 export const REMINDER_MINUTES = [10, 20, 30]
@@ -66,6 +66,13 @@ export const today = () => {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 export const markArrived = (clockInLink: string, clockOutLink: string) => {
+  // A new visit after clock-out starts with a fresh reminder, even on the same day.
+  const stillClockedIn = Storage.get<string>(CLOCKED_IN_KEY, SHARED) === today()
+    && Storage.get<string>(CLOCKED_OUT_KEY, SHARED) !== today()
+  if (Storage.get<string>(ARRIVED_KEY, SHARED) !== today() && !stillClockedIn) {
+    Storage.set(CLOCKED_IN_KEY, "", SHARED)
+    Storage.set(CLOCKED_OUT_KEY, "", SHARED)
+  }
   Storage.set(ARRIVED_KEY, today(), SHARED)
   Storage.set(CLOCK_IN_LINK_KEY, clockInLink, SHARED)
   Storage.set(CLOCK_OUT_LINK_KEY, clockOutLink, SHARED)
@@ -73,6 +80,14 @@ export const markArrived = (clockInLink: string, clockOutLink: string) => {
 export const markClockedIn = () => Storage.set(CLOCKED_IN_KEY, today(), SHARED)
 export const markClockedOut = () => Storage.set(CLOCKED_OUT_KEY, today(), SHARED)
 export const clearArrival = () => Storage.set(ARRIVED_KEY, "", SHARED)
+const CLOCK_CHECKPOINT_KEYS = [ARRIVED_KEY, CLOCKED_IN_KEY, CLOCKED_OUT_KEY, RUNNER_KEY]
+export const clockCheckpoint = () => CLOCK_CHECKPOINT_KEYS.map((key) => ({ key, value: Storage.get<string>(key, SHARED) }))
+export const restoreClockCheckpoint = (checkpoint: ReturnType<typeof clockCheckpoint>) => {
+  for (const { key, value } of checkpoint) {
+    if (value == null) Storage.remove(key, SHARED)
+    else Storage.set(key, value, SHARED)
+  }
+}
 // Whether an arrival link has ever run on this phone, i.e. the automation works.
 export const hasArrivedBefore = () => Storage.get<string>(ARRIVED_KEY, SHARED) != null
 export const arrivedToday = () => Storage.get<string>(ARRIVED_KEY, SHARED) === today()
@@ -84,5 +99,5 @@ export const clockOutLink = () => Storage.get<string>(CLOCK_OUT_LINK_KEY, SHARED
 export const withClockIn = (state: ChaxterState): ChaxterState => ({
   ...state,
   clockIn: clockInPending() ? Storage.get<string>(CLOCK_IN_LINK_KEY, SHARED) ?? "" : "",
-  clockOut: clockOutPending() ? clockOutLink() : "",
+  clockOut: !arrivedToday() && clockOutPending() ? clockOutLink() : "",
 })
