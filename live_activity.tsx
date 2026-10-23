@@ -1,6 +1,9 @@
 import {
   LiveActivity,
   LiveActivityUI,
+  LiveActivityUIExpandedLeading,
+  LiveActivityUIExpandedTrailing,
+  LiveActivityUIExpandedBottom,
   AppIntentManager,
   AppIntentProtocol,
   HStack,
@@ -113,12 +116,23 @@ export const chaxterActivity = LiveActivity.register<ChaxterState>(
         compactLeading={<Text font={{ name: "system-bold", size: 12 }}>U15: {state.u15}</Text>}
         compactTrailing={<Text font={{ name: "system-bold", size: 12 }}>Ü15: {state.o15}</Text>}
         minimal={<Text font={{ name: "system-bold", size: 12 }}>{state.total}</Text>}
-        children={
-          <HStack alignment="center">
+      >
+        <LiveActivityUIExpandedLeading>
+          <Text font={{ name: "system-bold", size: 12 }}>U15: {state.u15}</Text>
+        </LiveActivityUIExpandedLeading>
+
+        <LiveActivityUIExpandedTrailing>
+          <Text font={{ name: "system-bold", size: 12 }}>Ü15: {state.o15}</Text>
+        </LiveActivityUIExpandedTrailing>
+
+        <LiveActivityUIExpandedBottom>
+          <HStack spacing={12} padding={4}>
             <Text font={{ name: "system-bold", size: 12 }}>ChaxterLog</Text>
+            <Spacer />
+            <Text font={{ name: "system", size: 12 }} opacity={0.7}>Gesamt: {state.total}</Text>
           </HStack>
-        }
-      />
+        </LiveActivityUIExpandedBottom>
+      </LiveActivityUI>
     );
   }
 );
