@@ -4,14 +4,13 @@ import {
   LiveActivityUIExpandedLeading,
   LiveActivityUIExpandedTrailing,
   LiveActivityUIExpandedBottom,
-  AppIntentManager,
-  AppIntentProtocol,
   HStack,
   VStack,
   Text,
   Button,
   Spacer,
 } from "scripting";
+import { CountIntent, UndoIntent } from "./app_intents";
 
 // KONFIGURATION
 export const BASE_URL = "https://chaxterlog.jufo-grafing.de/api/v1";
@@ -23,53 +22,6 @@ export interface ChaxterState {
   total: number;
   lastUpdate: string;
 }
-
-export async function apiCall(endpoint: string, method: string, body?: Record<string, unknown>) {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  return await response.json();
-}
-
-export const CountIntent = AppIntentManager.register({
-  name: "ChaxterCountIntent",
-  protocol: AppIntentProtocol.LiveActivityIntent,
-  perform: async (params: { group: "u15" | "o15" }) => {
-    if (!params?.group) return;
-    const res = await apiCall("/visit", "POST", { group: params.group });
-    if (!res.error) {
-      const controller = chaxterActivity();
-      await controller.update({
-        u15: res.u15 ?? 0,
-        o15: res.o15 ?? 0,
-        total: res.total ?? 0,
-        lastUpdate: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      });
-    }
-  },
-});
-
-export const UndoIntent = AppIntentManager.register({
-  name: "ChaxterUndoIntent",
-  protocol: AppIntentProtocol.LiveActivityIntent,
-  perform: async (_params: Record<string, unknown>) => {
-    const res = await apiCall("/undo", "POST", {});
-    if (!res.error) {
-      const controller = chaxterActivity();
-      await controller.update({
-        u15: res.u15 ?? 0,
-        o15: res.o15 ?? 0,
-        total: res.total ?? 0,
-        lastUpdate: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      });
-    }
-  },
-});
 
 export const chaxterActivity = LiveActivity.register<ChaxterState>(
   "ChaxterLogActivity",
