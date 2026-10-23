@@ -1,11 +1,12 @@
-// BackgroundKeeper, Dialog, Keychain, Notification, Safari and Storage are Scripting globals.
+// BackgroundKeeper, Dialog, Keychain, Notification and Storage are Scripting globals.
 import { LiveActivity, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
 import { callApi } from "./api"
 import { startSilentAudio } from "./audio"
+import { openZeusObserved, copyZeusObservation } from "./zeus-flow"
 import {
-  ACTIVITY_NAME, BACKGROUND_POLLING, CLOCK_IN_URL, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, POLL_DEBUG_KEY, REMINDER_MINUTES, RUNNER_KEY, SHARED, TAP_KEY,
-  arrivedToday, clearArrival, clearToken, clock, clockCheckpoint, clockInPending, clockOutLink, clockOutPending, isToken, markArrived, markClockedIn, markClockedOut, readToken, restoreClockCheckpoint, saveToken, withClockIn, type ChaxterState,
+  ACTIVITY_NAME, BACKGROUND_POLLING, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, POLL_DEBUG_KEY, REMINDER_MINUTES, RUNNER_KEY, SHARED, TAP_KEY,
+  clearArrival, clearToken, clock, clockInPending, clockOutLink, clockOutPending, isToken, markArrived, markClockedIn, markClockedOut, readToken, saveToken, withClockIn, type ChaxterState,
 } from "./config"
 
 const POLL_MS = 15_000
@@ -79,33 +80,19 @@ async function clockOut() {
 }
 
 async function openTimeTracking(action: "in" | "out") {
-  const checkpoint = clockCheckpoint()
+  if (!await openZeusObserved(action)) return false
+  if (action === "in") await clockIn()
+  else await clockOut()
+  return true
+}
+
+async function resumePolling() {
   const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
-  // Update the lock screen and cancel reminders before iOS switches to the browser.
-  // This acknowledges the user's tap, not a confirmed ZeusX booking.
-  if (CLOCK_IN_URL) {
-    if (action === "in") await clockIn()
-    else await clockOut()
+  const running = (await LiveActivity.getAllActivities()).find((detail) => detail.state === "active")
+  if (last && running) {
+    const activity = await LiveActivity.from(running.id, ACTIVITY_NAME)
+    if (activity) await keepPolling(activity, last)
   }
-  try {
-    if (CLOCK_IN_URL && await Safari.openURL(CLOCK_IN_URL)) return true
-  } catch (error) {
-    console.log(`Zeitsystem öffnen: ${String(error)}`)
-  }
-  restoreClockCheckpoint(checkpoint)
-  if (last) {
-    if (action === "out" && CLOCK_IN_URL) await ChaxterActivity().start(withClockIn(last))
-    else await updateRunning(last)
-  }
-  if (CLOCK_IN_URL && clockInPending()) await arrive()
-  else if (CLOCK_IN_URL && !arrivedToday() && clockOutPending()) await leave()
-  await Dialog.alert({
-    title: "Zeitsystem nicht geöffnet",
-    message: CLOCK_IN_URL
-      ? "Die Seite konnte nicht geöffnet werden. Bitte erneut versuchen. Der Knopf wurde wiederhergestellt."
-      : "Bitte CLOCK_IN_URL in config.ts eintragen. Knopf und Erinnerungen bleiben aktiv.",
-  })
-  return false
 }
 
 // Leaving ends the activity, unless today's clock-out is still open: then the activity stays with
@@ -130,6 +117,10 @@ async function leave() {
 
 async function main() {
   const params = Script.queryParameters ?? {}
+  if (flag(params.zeusLog)) {
+    await copyZeusObservation()
+    return resumePolling()
+  }
   if (flag(params.leave)) return leave()
   const clockingIn = flag(params.clockIn)
   const clockingOut = flag(params.clockOut)
@@ -137,12 +128,7 @@ async function main() {
   if (clockingIn) {
     await openTimeTracking("in")
     // run_single replaced the old runner, so resume updates on the existing activity.
-    const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
-    const running = (await LiveActivity.getAllActivities()).find((detail) => detail.state === "active")
-    if (last && running) {
-      const activity = await LiveActivity.from(running.id, ACTIVITY_NAME)
-      if (activity) await keepPolling(activity, last)
-    }
+    await resumePolling()
     return
   }
   if (clockingOut) return openTimeTracking("out")
@@ -201,6 +187,7 @@ async function keepPolling(
     // Compatibility for links stored by older versions; new links always start a fresh run.
     if (flag(queryParameters?.clockIn)) await openTimeTracking("in")
     if (flag(queryParameters?.clockOut)) await openTimeTracking("out")
+    if (flag(queryParameters?.zeusLog)) await copyZeusObservation()
   })
   let stopAudio: (() => Promise<void>) | null = null
   try {
@@ -228,4 +215,8 @@ async function keepPolling(
   }
 }
 
-main().finally(() => Script.exit())
+main().catch(async (error) => {
+  const message = String(error)
+  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.0: ${message}`, SHARED)
+  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.0\n${message}` })
+}).finally(() => Script.exit())

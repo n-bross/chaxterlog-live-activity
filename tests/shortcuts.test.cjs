@@ -42,3 +42,10 @@ test('failed shortcut launch reports the problem rather than claiming arrival', 
   assert.equal(h.alerts.length, 1)
   assert.equal(h.results.includes('ChaxterLog: Ankommen'), false)
 })
+
+
+test('protokoll opens the embedded observation export without triggering arrival', async () => {
+  const h = await run('protokoll')
+  assert.equal(h.calls[0].params.zeusLog, '1')
+  assert.equal(h.calls[0].params.arrive, undefined)
+})

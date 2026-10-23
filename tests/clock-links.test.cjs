@@ -22,11 +22,6 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
       schedule: async () => calls.push({ kind: 'schedule' }),
     },
     TimeIntervalNotificationTrigger: class {},
-    Safari: { openURL: async (url) => {
-      calls.push({ kind: 'open', url, clockInPending: config.clockInPending(), clockOutPending: config.clockOutPending(), active })
-      if (opened instanceof Error) throw opened
-      return opened
-    } },
     Dialog: { alert: async () => calls.push({ kind: 'alert' }) },
     BackgroundKeeper: { keepAlive: async () => { calls.push({ kind: 'keepAlive' }); return true }, stopKeepAlive: async () => {} },
     setTimeout: (callback) => { values.set('chaxterlog.runner', ''); callback() },
@@ -50,11 +45,19 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
       endAllActivities: async () => { active = false; calls.push({ kind: 'end' }) },
     } },
     './config': config,
+    './zeus-flow': {
+      openZeusObserved: async (action) => {
+        calls.push({ kind: 'zeus', action, clockInPending: config.clockInPending(), clockOutPending: config.clockOutPending(), active })
+        if (opened instanceof Error) throw opened
+        return opened
+      },
+      copyZeusObservation: async () => calls.push({ kind: 'copy' }),
+    },
     './api': { callApi: async () => { calls.push({ kind: 'fetch' }); return fetchFails ? { ok: false, message: 'offline' } : { ok: true, state } } },
     './audio': { startSilentAudio: async () => async () => {} },
     './live_activity': { ChaxterActivity: () => ({ start: async (state) => { active = true; calls.push({ kind: 'start', state }); return true }, update: async () => {} }) },
   })[name]
-  vm.runInContext(compile('index.tsx').replace('main().finally(() => scripting_1.Script.exit());', ''), context)
+  vm.runInContext(compile('index.tsx').replace(/\nmain\(\)[\s\S]*$/, ''), context)
   return { calls, config, values, run: async () => {
     await vm.runInContext('main()', context)
     if (resume) await onResume({ queryParameters: { [action]: '1' } })
@@ -62,19 +65,19 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
 }
 
 for (const resume of [false, true]) {
-  test(`clock-in updates the visible button before leaving Scripting (${resume ? 'resume' : 'fresh'})`, async () => {
+  test(`clock-in observes ZeusX before hiding the button (${resume ? 'resume' : 'fresh'})`, async () => {
     const h = harness({ resume })
     await h.run()
-    const opening = h.calls.find(call => call.kind === 'open')
-    assert.equal(opening.clockInPending, false)
-    assert.equal(opening.clockOutPending, true)
+    const opening = h.calls.find(call => call.kind === 'zeus')
+    assert.equal(opening.clockInPending, true)
+    assert.equal(opening.clockOutPending, false)
     assert.ok(h.calls.some(call => call.kind === 'update' && call.state.clockIn === '' && call.state.clockOut === ''))
     assert.equal(h.isActive(), true)
   })
-  test(`clock-out closes the activity before leaving Scripting (${resume ? 'resume' : 'fresh'})`, async () => {
+  test(`clock-out closes the activity after the embedded ZeusX flow completes (${resume ? 'resume' : 'fresh'})`, async () => {
     const h = harness({ action: 'clockOut', resume })
     await h.run()
-    assert.equal(h.calls.find(call => call.kind === 'open').active, false)
+    assert.equal(h.calls.find(call => call.kind === 'zeus').active, true)
     assert.equal(h.isActive(), false)
     assert.equal(h.config.clockOutPending(), false)
     assert.equal(h.config.arrivedToday(), false)
@@ -89,12 +92,12 @@ test('clock links do not depend on a successful count API request', async () => 
 })
 
 for (const action of ['clockIn', 'clockOut']) {
-  test(`${action} restores its previous button if the website cannot open`, async () => {
+  test(`${action} keeps its button if the embedded flow is cancelled`, async () => {
     const h = harness({ action, opened: false })
     await h.run()
     assert.equal(action === 'clockIn' ? h.config.clockInPending() : h.config.clockOutPending(), true)
     assert.equal(h.isActive(), true)
-    assert.ok(h.calls.some(call => call.kind === 'alert'))
+    assert.equal(h.calls.some(call => call.kind === 'clear'), false)
   })
 }
 
@@ -104,7 +107,7 @@ test('a plain shortcut start shows clock-in and sets fresh single-run links', as
   const start = h.calls.find(call => call.kind === 'start')
   assert.match(start.state.clockIn, /run_single\/ChaxterLog\?clockIn=1/)
   assert.equal(h.calls.filter(call => call.kind === 'schedule').length, 3)
-  assert.equal(h.calls.filter(call => call.kind === 'open').length, 0)
+  assert.equal(h.calls.filter(call => call.kind === 'zeus').length, 0)
 })
 
 
@@ -116,13 +119,13 @@ test('clock-out appears only after leaving the workplace', async () => {
   const update = h.calls.find(call => call.kind === 'update')
   assert.equal(update.state.clockIn, '')
   assert.equal(update.state.clockOut, 'old-clock-out-link')
-  assert.equal(h.calls.filter(call => call.kind === 'open').length, 0)
+  assert.equal(h.calls.filter(call => call.kind === 'zeus').length, 0)
 })
 
 test('a fresh clock-in link keeps the count polling loop alive', async () => {
   const h = harness({ background: true })
   await h.run()
-  assert.ok(h.calls.findIndex(call => call.kind === 'keepAlive') > h.calls.findIndex(call => call.kind === 'open'))
+  assert.ok(h.calls.findIndex(call => call.kind === 'keepAlive') > h.calls.findIndex(call => call.kind === 'zeus'))
 })
 
 test('starting again after clock-out creates a new clock-in reminder', async () => {
@@ -132,4 +135,11 @@ test('starting again after clock-out creates a new clock-in reminder', async () 
   h.config.clearArrival()
   await h.run()
   assert.equal(h.config.clockInPending(), true)
+})
+
+test('observation export neither opens ZeusX nor starts an arrival', async () => {
+  const h = harness({ action: 'zeusLog' })
+  await h.run()
+  assert.equal(h.calls.filter(call => call.kind === 'copy').length, 1)
+  assert.equal(h.calls.filter(call => ['zeus', 'fetch', 'schedule', 'clear'].includes(call.kind)).length, 0)
 })
