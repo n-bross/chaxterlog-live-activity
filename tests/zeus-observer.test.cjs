@@ -21,11 +21,13 @@ function fixture() {
   }).outputText, { exports })
   const context = vm.createContext({
     window: { webkit: { messageHandlers: { zeusObservation: { postMessage: async (record) => records.push(record) } } } },
-    location: { origin: 'https://zeiterfassung.grafing.de' },
+    location: { origin: 'https://zeiterfassung.grafing.de', pathname: '/ZeusX/content/workspace.aspx' },
     document: {
       documentElement: {},
       addEventListener: (name, listener) => { assert.equal(name, 'click'); click = listener },
       getElementById: (id) => id === 'TerminalResult' ? result : undefined,
+      querySelector: (selector) => { assert.equal(selector, '#uiBookingActions button'); return button },
+      querySelectorAll: (selector) => { assert.equal(selector, 'iframe'); return [] },
     },
     MutationObserver: class {
       constructor(callback) { mutation = callback }
@@ -37,7 +39,7 @@ function fixture() {
   const install = () => vm.runInContext(exports.OBSERVER_SCRIPT, context)
   install()
   const tap = (trusted = true, terminal = true) => click({ isTrusted: trusted, target: { closest: () => terminal ? button : null } })
-  return { records, tap, install, change: (text) => { resultText = text; mutation() } }
+  return { records, tap, install, status: () => vm.runInContext('(function(){' + exports.OBSERVER_STATUS_SCRIPT + '})()', context), change: (text) => { resultText = text; mutation() } }
 }
 
 test('the observer is passive until a real user taps the terminal button', () => {
@@ -80,4 +82,18 @@ test('the native recorder discards unexpected fields such as passwords and reque
   assert.equal(normalized.result.text, 'Saldo -2.53')
   assert.equal(JSON.stringify(normalized).includes('do-not-store'), false)
   assert.equal(context.exports.normalizeObservation({ kind: 'login', password: 'do-not-store' }), null)
+})
+
+test('the observer readiness probe works without a booking or any page text export', () => {
+  const f = fixture()
+  const status = f.status()
+  assert.equal(status.originAllowed, true)
+  assert.equal(status.installed, true)
+  assert.equal(status.bridgeAvailable, true)
+  assert.equal(status.terminalButtonFound, true)
+  assert.equal(status.terminalResultFound, true)
+  assert.equal(status.loginPage, false)
+  assert.equal(status.frameCount, 0)
+  assert.equal(f.records.length, 0)
+  assert.equal(JSON.stringify(status).includes('Online'), false)
 })

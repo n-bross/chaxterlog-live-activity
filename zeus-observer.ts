@@ -74,3 +74,17 @@ export function normalizeObservation(value: unknown): Observation | null {
   }
   return { kind: data.kind, at: data.at, tapAt: data.tapAt, button: "Kommt/Geht", result }
 }
+
+// Returns only readiness flags; never page text, login values, cookies or request data.
+export const OBSERVER_STATUS_SCRIPT = `return (() => {
+  const allowed = location.origin === 'https://zeiterfassung.grafing.de';
+  return {
+    originAllowed: allowed,
+    installed: allowed && window.__zeusObserverInstalled === true,
+    bridgeAvailable: allowed && typeof window.webkit?.messageHandlers?.zeusObservation?.postMessage === 'function',
+    loginPage: allowed && /\\/Account\\/LogOn\\.aspx/i.test(location.pathname),
+    terminalButtonFound: allowed && !!document.querySelector('#uiBookingActions button'),
+    terminalResultFound: allowed && !!document.getElementById('TerminalResult'),
+    frameCount: allowed ? Math.min(100, document.querySelectorAll('iframe').length) : 0,
+  };
+})();`

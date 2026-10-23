@@ -236,6 +236,6 @@ async function keepPolling(
 
 main().catch(async (error) => {
   const message = String(error)
-  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.4: ${message}`, SHARED)
-  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.4\n${message}` })
+  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.5: ${message}`, SHARED)
+  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.5\n${message}` })
 }).finally(() => Script.exit())

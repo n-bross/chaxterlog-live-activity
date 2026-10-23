@@ -58,7 +58,7 @@ Automationen werden weiterhin auf dem iPhone eingerichtet. In der englischen Kur
 
 Mit installiertem TypeScript: `node --test tests/*.test.cjs`. Die Tests prüfen den gemeinsamen beobachteten ZeusX-Aufruf, das Behalten der Knöpfe bei Abbruch, das Entfernen von Einstempeln erst nach Bestätigung, Ausstempeln erst nach Verlassen, das Ende der Activity sowie Aufzeichnung, Export und Kurzbefehl-Aufrufe. Es werden keine echten Stempelungen ausgelöst.
 
-Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.4 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
+Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.5 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
 
 ## Startkorrektur in 1.3.1
 
@@ -83,3 +83,11 @@ Das vorhandene Projekt auf **1.3.3** aktualisieren und `index.tsx` einmal neu st
 Ein- und Ausstempeln sowie weitere Versuche werden jetzt sitzungsübergreifend gespeichert. **ZeusX-Aufzeichnung kopieren** exportiert den gesamten Verlauf gemeinsam (`zeus-observations/v2`). Du musst nach dem Einstempeln nichts schicken; ein gemeinsamer Export nach dem Ausstempeln reicht. Aufgezeichnet wird weiterhin ausschließlich innerhalb der über ChaxterLog geöffneten ZeusX-Seite, nicht in anderen Browsern oder bei geschlossenem Skript.
 
 Gespeichert werden die neuesten **20 Sitzungen mit Ereignissen**, je höchstens 100 Ereignisse. Ein Öffnen ohne erfassten Stempelklick ersetzt keine frühere Aufzeichnung. Eine noch vorhandene Aufzeichnung aus Version 1.3.3 oder älter wird beim Upgrade übernommen; bereits überschriebene alte Sitzungen lassen sich nicht wiederherstellen. Login-Eingaben und Cookies bleiben ausgeschlossen.
+
+## Selbstprüfung bei leerer Aufzeichnung in 1.3.5
+
+Bei jeder über ChaxterLog geöffneten ZeusX-Seite wird jetzt auch eine kleine Diagnose gespeichert: Projektname und Version, Lade-/Abschlussstatus, Injektionsversuche und Fehleranzahl sowie Wahrheitswerte für aktiven Beobachter, vorhandene Nachrichtenbrücke, Login-Seite, gefundenen Stempelknopf und Terminal-Bereich. Die Anzahl von iFrames wird mit erfasst, um eine abweichende Seitenstruktur zu erkennen. Die Prüfung liest keine Login-Werte, Cookies, Formularinhalte oder sonstige Seitentexte.
+
+**ZeusX-Aufzeichnung kopieren** exportiert diese Diagnose auch dann, wenn kein Stempelklick erfasst wurde. Eine leere Ereignisliste wird weiterhin ausdrücklich als „Keine Buchung erfasst“ bezeichnet. Vorhandene Sitzungen bleiben im Verlauf erhalten. Bereits fehlende Aufzeichnungen werden dadurch nicht nachträglich wiederhergestellt.
+
+Eine Selbstprüfung erfordert keine zusätzliche Buchung: auf **1.3.5** aktualisieren, `index.tsx` neu starten, ZeusX über den Stempelknopf öffnen und die Seite laden lassen. Falls nur die Login-Seite erscheint, kann man sich regulär anmelden, ohne einen Stempelknopf zu drücken. Anschließend die Webseite schließen, **Noch nicht – Knopf behalten** wählen und `scripting://run_single/ChaxterLog?zeusLog=1` öffnen. Bei einem abweichenden Projektnamen den Namen im Link ersetzen. Den kopierten Diagnose-Text im Chat einfügen.
