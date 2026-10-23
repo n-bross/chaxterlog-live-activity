@@ -2,7 +2,7 @@
 import { LiveActivity, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
 import { callApi } from "./api"
-import { LAST_STATE_KEY, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
+import { DEBUG_KEY, LAST_STATE_KEY, SHARED, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
 
 const POLL_MS = 15_000
 const MAX_RUNTIME_MS = 8 * 60 * 60 * 1000 // iOS ends Live Activities after 8 hours anyway.
@@ -29,6 +29,8 @@ async function ensureToken() {
 }
 
 async function main() {
+  const lastIntent = Storage.get<string>(DEBUG_KEY, SHARED)
+  if (lastIntent) console.log(`Letzter Knopf-Tipp: ${lastIntent}`)
   if (!await ensureToken()) return
   const first = await callApi("/today")
   if (!first.ok) {
@@ -37,7 +39,7 @@ async function main() {
     await Dialog.alert({ title: "ChaxterLog", message: first.message })
     return
   }
-  Storage.set(LAST_STATE_KEY, first.state)
+  Storage.set(LAST_STATE_KEY, first.state, SHARED)
 
   // One activity at a time: a new run replaces the previous one.
   try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
@@ -49,7 +51,10 @@ async function main() {
 
   // Changes by other staff only arrive by polling. Without background time (Scripting PRO)
   // the activity still updates after its own button taps.
-  if (!await BackgroundKeeper.keepAlive()) return
+  if (!await BackgroundKeeper.keepAlive()) {
+    await activity.update({ ...first.state, message: "Kein Hintergrundbetrieb: nur eigene Tipps aktualisieren." })
+    return
+  }
   try {
     let last = totals(first.state)
     const stopAt = Date.now() + MAX_RUNTIME_MS
@@ -59,7 +64,7 @@ async function main() {
       if (!running.some((detail) => detail.state === "active")) break
       const next = await callApi("/today")
       if (!next.ok) continue
-      Storage.set(LAST_STATE_KEY, next.state)
+      Storage.set(LAST_STATE_KEY, next.state, SHARED)
       if (totals(next.state) !== last) { last = totals(next.state); await activity.update(next.state) }
     }
   } finally {

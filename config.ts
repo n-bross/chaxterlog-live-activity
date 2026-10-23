@@ -5,8 +5,10 @@
 export const BASE_URL = "https://chaxterlog.jufo-grafing.de/api/v1"
 export const ACTIVITY_NAME = "ChaxterLogActivity"
 const TOKEN_KEY = "chaxterlog.token"
-// Last good state in Storage, which Live Activities and intents share with the app.
+// Storage is only visible to Live Activities and intents with the shared option.
+export const SHARED = { shared: true }
 export const LAST_STATE_KEY = "chaxterlog.lastState"
+export const DEBUG_KEY = "chaxterlog.debug"
 
 export type ChaxterState = {
   u15: number
