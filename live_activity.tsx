@@ -11,7 +11,7 @@ import {
   Text,
   VStack,
 } from "scripting"
-import { CountIntent, UndoIntent } from "./app_intents"
+import { CountIntent, RefreshIntent, UndoIntent } from "./app_intents"
 import { ACTIVITY_NAME, type ChaxterState } from "./config"
 
 const PETROL = "#00698c", DEEP = "#004f6a", YELLOW = "#fffd24"
@@ -36,6 +36,9 @@ function Content({ state }: { state: ChaxterState }) {
         <Text font={14} fontWeight="bold" foregroundStyle="#151515">ChaxterLog</Text>
         <Spacer />
         <Text font={11} foregroundStyle="#6f6f6f">{`Gesamt ${state.total} · geändert ${state.changedAt}`}</Text>
+        <Button intent={RefreshIntent(undefined)} buttonStyle="plain">
+          <Text font={15} fontWeight="bold" foregroundStyle={PETROL}>↻</Text>
+        </Button>
       </HStack>
       <HStack spacing={8}>
         <CountButton label="U15" value={state.u15} group="u15" />
@@ -72,6 +75,7 @@ const builder: LiveActivityUIBuilder<ChaxterState> = (state) => (
         <Button title="U15 +1" intent={CountIntent({ group: "u15" })} />
         <Button title="Ü15 +1" intent={CountIntent({ group: "o15" })} />
         <Button title="↶" intent={UndoIntent(undefined)} />
+        <Button title="↻" intent={RefreshIntent(undefined)} />
       </HStack>
     </LiveActivityUIExpandedBottom>
   </LiveActivityUI>

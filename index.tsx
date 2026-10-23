@@ -2,7 +2,7 @@
 import { LiveActivity, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
 import { callApi } from "./api"
-import { DEBUG_KEY, LAST_STATE_KEY, SHARED, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
+import { BACKGROUND_POLLING, DEBUG_KEY, LAST_STATE_KEY, SHARED, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
 
 const POLL_MS = 15_000
 const MAX_RUNTIME_MS = 8 * 60 * 60 * 1000 // iOS ends Live Activities after 8 hours anyway.
@@ -49,10 +49,11 @@ async function main() {
     return
   }
 
-  // Changes by other staff only arrive by polling. Without background time (Scripting PRO)
-  // the activity still updates after its own button taps.
+  // Without PRO the script ends here; the activity stays and updates on every tap and on ↻.
+  // With BACKGROUND_POLLING (needs Scripting PRO) changes by other staff also arrive on their own.
+  if (!BACKGROUND_POLLING) return
   if (!await BackgroundKeeper.keepAlive()) {
-    await activity.update({ ...first.state, message: "Kein Hintergrundbetrieb: nur eigene Tipps aktualisieren." })
+    await activity.update({ ...first.state, message: "Hintergrundbetrieb nicht verfügbar: ↻ tippen für den Stand." })
     return
   }
   try {

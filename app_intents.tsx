@@ -39,6 +39,15 @@ export const CountIntent = AppIntentManager.register({
   },
 })
 
+// Fetches the current totals without counting, so changes by other staff show up on demand.
+export const RefreshIntent = AppIntentManager.register({
+  name: "ChaxterRefreshIntent",
+  protocol: AppIntentProtocol.LiveActivityIntent,
+  perform: async (_params: undefined) => {
+    try { await showResult(await callApi("/today")) } catch (error) { debug(`Fehler: ${String(error)}`) }
+  },
+})
+
 export const UndoIntent = AppIntentManager.register({
   name: "ChaxterUndoIntent",
   protocol: AppIntentProtocol.LiveActivityIntent,

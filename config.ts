@@ -4,6 +4,9 @@
 
 export const BASE_URL = "https://chaxterlog.jufo-grafing.de/api/v1"
 export const ACTIVITY_NAME = "ChaxterLogActivity"
+// Polling in the background needs Scripting PRO (BackgroundKeeper); without it Scripting shows an
+// upgrade dialog. Off by default: the ↻ button and every tap fetch the latest totals instead.
+export const BACKGROUND_POLLING = false
 const TOKEN_KEY = "chaxterlog.token"
 // Storage is only visible to Live Activities and intents with the shared option.
 export const SHARED = { shared: true }

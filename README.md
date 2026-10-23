@@ -8,7 +8,7 @@ Live Activity für den Sperrbildschirm und die Dynamic Island mit den Knöpfen U
 2. `index.tsx` starten. Beim ersten Start fragt das Skript nach dem Token. Den Token in ChaxterLog unter Konto → Handy-Widget & Kurzbefehle erstellen. Er wird nur im Schlüsselbund dieses Skripts gespeichert, nie im Code.
 3. Erneutes Starten ersetzt die laufende Live Activity.
 
-Mit Scripting PRO (`BackgroundKeeper`) fragt das Skript alle 15 Sekunden den Stand ab, so erscheinen auch Klicks anderer Mitarbeiter. Ohne PRO aktualisiert sich die Live Activity nur nach eigenen Tipps.
+Jeder Tipp auf U15, Ü15 oder ↶ zeigt danach den aktuellen Tagesstand des ganzen Teams; ↻ holt ihn ohne zu zählen. Mit Scripting PRO kann `BACKGROUND_POLLING` in `config.ts` auf `true` gesetzt werden: Dann fragt das Skript alle 15 Sekunden den Stand ab, und Klicks anderer Mitarbeiter erscheinen von selbst. Ohne PRO bleibt es aus, sonst zeigt Scripting einen Upgrade-Dialog.
 
 ## Aufbau
 
