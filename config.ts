@@ -21,7 +21,12 @@ export type ChaxterState = {
   changedAt: string
   refreshedAt: string
   message: string
+  // Which button just succeeded ("u15", "o15", "undo", "refresh") or "error"; "" when idle.
+  flash: Flash
 }
+export type Flash = "" | "u15" | "o15" | "undo" | "refresh" | "error"
+// How long a confirmed tap stays highlighted before the activity returns to normal.
+export const FLASH_MS = 1400
 
 // The token lives in this script's Keychain, never in the code or the repository.
 export const readToken = () => Keychain.get(TOKEN_KEY)

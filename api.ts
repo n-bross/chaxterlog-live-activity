@@ -25,6 +25,7 @@ export async function callApi(path: "/today" | "/visit" | "/undo", method: "GET"
         changedAt: data.updatedAt ? clock(new Date(data.updatedAt)) : "–",
         refreshedAt: clock(new Date()),
         message: "",
+        flash: "",
       },
     }
   } catch {
