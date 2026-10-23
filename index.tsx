@@ -2,13 +2,13 @@
 import { LiveActivity, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
 import { callApi } from "./api"
-import { BACKGROUND_POLLING, DEBUG_KEY, LAST_STATE_KEY, SHARED, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
+import { BACKGROUND_POLLING, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, RUNNER_KEY, SHARED, TAP_KEY, clearToken, isToken, readToken, saveToken, type ChaxterState } from "./config"
 
 const POLL_MS = 15_000
 const MAX_RUNTIME_MS = 8 * 60 * 60 * 1000 // iOS ends Live Activities after 8 hours anyway.
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(() => resolve(), ms))
-// Compares totals and change time only, so the "Stand" time shows the last real update, not every poll.
-const totals = ({ refreshedAt: _, ...rest }: ChaxterState) => JSON.stringify(rest)
+// Compares what the activity shows, ignoring the fetch time, so an unchanged poll does not redraw.
+const shown = ({ u15, o15, changedAt, message }: ChaxterState) => JSON.stringify([u15, o15, changedAt, message])
 
 async function ensureToken() {
   if (readToken()) return true
@@ -41,7 +41,9 @@ async function main() {
   }
   Storage.set(LAST_STATE_KEY, first.state, SHARED)
 
-  // One activity at a time: a new run replaces the previous one.
+  // One activity at a time: a new run replaces the previous one and its polling loop.
+  const runner = `${Date.now()}-${Math.random()}`
+  Storage.set(RUNNER_KEY, runner, SHARED)
   try { await LiveActivity.endAllActivities() } catch { /* nothing running */ }
   const activity = ChaxterActivity()
   if (!await activity.start(first.state)) {
@@ -49,24 +51,27 @@ async function main() {
     return
   }
 
-  // Without PRO the script ends here; the activity stays and updates on every tap and on ↻.
+  // Without PRO the script ends here; the activity stays and updates on every tap.
   // With BACKGROUND_POLLING (needs Scripting PRO) changes by other staff also arrive on their own.
   if (!BACKGROUND_POLLING) return
   if (!await BackgroundKeeper.keepAlive()) {
-    await activity.update({ ...first.state, message: "Hintergrundbetrieb nicht verfügbar: ↻ tippen für den Stand." })
+    await activity.update({ ...first.state, message: "Hintergrundbetrieb nicht verfügbar (Scripting PRO)." })
     return
   }
   try {
-    let last = totals(first.state)
     const stopAt = Date.now() + MAX_RUNTIME_MS
     while (Date.now() < stopAt) {
       await sleep(POLL_MS)
+      if (Storage.get<string>(RUNNER_KEY, SHARED) !== runner) break
       const running = await LiveActivity.getAllActivities()
       if (!running.some((detail) => detail.state === "active")) break
+      const tappedAt = Number(Storage.get<string>(TAP_KEY, SHARED)?.split("-")[0] ?? 0)
       const next = await callApi("/today")
-      if (!next.ok) continue
+      // A tap in progress shows its own result and highlight; the next poll catches up.
+      if (!next.ok || Date.now() - tappedAt < FLASH_MS + 1000) continue
+      const current = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED) ?? first.state
       Storage.set(LAST_STATE_KEY, next.state, SHARED)
-      if (totals(next.state) !== last) { last = totals(next.state); await activity.update(next.state) }
+      if (shown(next.state) !== shown(current)) await activity.update(next.state)
     }
   } finally {
     await BackgroundKeeper.stopKeepAlive()
