@@ -1,90 +1,81 @@
 import {
+  Button,
+  HStack,
   LiveActivity,
   LiveActivityUI,
   LiveActivityUIBuilder,
+  LiveActivityUIExpandedBottom,
   LiveActivityUIExpandedLeading,
   LiveActivityUIExpandedTrailing,
-  LiveActivityUIExpandedBottom,
-  HStack,
-  VStack,
-  Text,
-  Button,
   Spacer,
-} from "scripting";
-import { CountIntent, UndoIntent } from "./app_intents";
+  Text,
+  VStack,
+} from "scripting"
+import { CountIntent, UndoIntent } from "./app_intents"
+import { ACTIVITY_NAME, type ChaxterState } from "./config"
 
-export const BASE_URL = "https://chaxterlog.jufo-grafing.de/api/v1";
-export const TOKEN = "chx_3a00c90b55c8faa679d2b8db0bef7d7e49ce1a150646c075253fa43940c61858";
-export const ACTIVITY_NAME = "ChaxterLogActivity";
+const PETROL = "#00698c", DEEP = "#004f6a", YELLOW = "#fffd24"
+const tile = (color: string) => ({ style: color, shape: { type: "rect", cornerRadius: 14, style: "continuous" } } as const)
 
-export interface ChaxterState {
-  u15: number;
-  o15: number;
-  total: number;
-  lastUpdate: string;
+function CountButton({ label, value, group }: { label: string; value: number; group: "u15" | "o15" }) {
+  return (
+    <Button intent={CountIntent({ group })} buttonStyle="plain">
+      <VStack spacing={2} padding={10} frame={{ maxWidth: "infinity" }} background={tile(PETROL)}>
+        <Text font={12} foregroundStyle="white">{label}</Text>
+        <Text font={26} fontWeight="bold" foregroundStyle="white">{String(value)}</Text>
+        <Text font={11} fontWeight="bold" foregroundStyle={YELLOW}>+1</Text>
+      </VStack>
+    </Button>
+  )
 }
 
-const builder: LiveActivityUIBuilder<ChaxterState> = (state) => {
+function Content({ state }: { state: ChaxterState }) {
   return (
-    <LiveActivityUI
-      content={
-        <VStack padding={12} spacing={8}>
-          <HStack alignment="center">
-            <Text font={{ name: "system-bold", size: 14 }}>ChaxterLog</Text>
-            <Spacer />
-            <Text font={{ name: "system", size: 12 }} opacity={0.7}>
-              Stand {state.lastUpdate} · Gesamt {state.total}
-            </Text>
-          </HStack>
+    <VStack spacing={8} padding={14} activityBackgroundTint="#f7f7f6">
+      <HStack>
+        <Text font={14} fontWeight="bold" foregroundStyle="#151515">ChaxterLog</Text>
+        <Spacer />
+        <Text font={11} foregroundStyle="#6f6f6f">{`Gesamt ${state.total} · geändert ${state.changedAt}`}</Text>
+      </HStack>
+      <HStack spacing={8}>
+        <CountButton label="U15" value={state.u15} group="u15" />
+        <CountButton label="Ü15" value={state.o15} group="o15" />
+        <Button intent={UndoIntent(undefined)} buttonStyle="plain">
+          <VStack spacing={2} padding={10} frame={{ width: 64 }} background={tile(DEEP)}>
+            <Text font={22} fontWeight="bold" foregroundStyle="white">↶</Text>
+            <Text font={11} fontWeight="bold" foregroundStyle={YELLOW}>zurück</Text>
+          </VStack>
+        </Button>
+      </HStack>
+      <Text font={10} foregroundStyle={state.message ? "#c4372b" : "#6f6f6f"}>
+        {state.message || `Stand ${state.refreshedAt}`}
+      </Text>
+    </VStack>
+  )
+}
 
-          <HStack spacing={10}>
-            <Button intent={CountIntent({ group: "u15" })} padding={10} background="#00698c">
-              <VStack alignment="center" spacing={2}>
-                <Text font={{ name: "system", size: 12 }} foregroundStyle="white" opacity={0.8}>U15</Text>
-                <Text font={{ name: "system-bold", size: 24 }} foregroundStyle="white">{String(state.u15)}</Text>
-                <Text font={{ name: "system-bold", size: 10 }} foregroundStyle="#fffd24">+1</Text>
-              </VStack>
-            </Button>
+const builder: LiveActivityUIBuilder<ChaxterState> = (state) => (
+  <LiveActivityUI
+    content={<Content state={state} />}
+    compactLeading={<Text font={12} fontWeight="bold">{`U ${state.u15}`}</Text>}
+    compactTrailing={<Text font={12} fontWeight="bold">{`Ü ${state.o15}`}</Text>}
+    minimal={<Text font={12} fontWeight="bold">{String(state.total)}</Text>}
+  >
+    <LiveActivityUIExpandedLeading>
+      <Text font={14} fontWeight="bold">{`U15: ${state.u15}`}</Text>
+    </LiveActivityUIExpandedLeading>
+    <LiveActivityUIExpandedTrailing>
+      <Text font={14} fontWeight="bold">{`Ü15: ${state.o15}`}</Text>
+    </LiveActivityUIExpandedTrailing>
+    <LiveActivityUIExpandedBottom>
+      <HStack spacing={8}>
+        <Button title="U15 +1" intent={CountIntent({ group: "u15" })} />
+        <Button title="Ü15 +1" intent={CountIntent({ group: "o15" })} />
+        <Button title="↶" intent={UndoIntent(undefined)} />
+      </HStack>
+    </LiveActivityUIExpandedBottom>
+  </LiveActivityUI>
+)
 
-            <Button intent={CountIntent({ group: "o15" })} padding={10} background="#00698c">
-              <VStack alignment="center" spacing={2}>
-                <Text font={{ name: "system", size: 12 }} foregroundStyle="white" opacity={0.8}>Ü15</Text>
-                <Text font={{ name: "system-bold", size: 24 }} foregroundStyle="white">{String(state.o15)}</Text>
-                <Text font={{ name: "system-bold", size: 10 }} foregroundStyle="#fffd24">+1</Text>
-              </VStack>
-            </Button>
-
-            <Button intent={UndoIntent({})} padding={10} background="#004f6a">
-              <VStack alignment="center" spacing={2}>
-                <Text font={{ name: "system-bold", size: 18 }} foregroundStyle="white">↶</Text>
-                <Spacer />
-                <Text font={{ name: "system-bold", size: 10 }} foregroundStyle="#fffd24">zurück</Text>
-              </VStack>
-            </Button>
-          </HStack>
-        </VStack>
-      }
-      compactLeading={<Text font={{ name: "system-bold", size: 12 }}>U15: {state.u15}</Text>}
-      compactTrailing={<Text font={{ name: "system-bold", size: 12 }}>Ü15: {state.o15}</Text>}
-      minimal={<Text font={{ name: "system-bold", size: 12 }}>{state.total}</Text>}
-    >
-      <LiveActivityUIExpandedLeading>
-        <Text font={{ name: "system-bold", size: 12 }}>U15: {state.u15}</Text>
-      </LiveActivityUIExpandedLeading>
-
-      <LiveActivityUIExpandedTrailing>
-        <Text font={{ name: "system-bold", size: 12 }}>Ü15: {state.o15}</Text>
-      </LiveActivityUIExpandedTrailing>
-
-      <LiveActivityUIExpandedBottom>
-        <HStack spacing={12} padding={4}>
-          <Text font={{ name: "system-bold", size: 12 }}>ChaxterLog</Text>
-          <Spacer />
-          <Text font={{ name: "system", size: 12 }} opacity={0.7}>Gesamt: {state.total}</Text>
-        </HStack>
-      </LiveActivityUIExpandedBottom>
-    </LiveActivityUI>
-  );
-};
-
-export const chaxterActivity = LiveActivity.register(ACTIVITY_NAME, builder);
+// The only LiveActivity.register call in the project.
+export const ChaxterActivity = LiveActivity.register(ACTIVITY_NAME, builder)
