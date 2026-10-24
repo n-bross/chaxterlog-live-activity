@@ -16,7 +16,7 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
   const notifications = {
     removeAllPendingsOfCurrentScript: async () => { if (notificationFailure === 'clear') throw new Error('Notifications unavailable'); calls.push({ kind: 'clear' }) },
     removeAllDeliveredsOfCurrentScript: async () => { if (notificationFailure === 'delivered') throw new Error('Notification cleanup failed') },
-    schedule: async () => { if (notificationFailure === 'schedule') throw new Error('Notifications denied'); calls.push({ kind: 'schedule' }) },
+    schedule: async () => { if (notificationFailure === 'schedule') throw new Error('Notifications denied'); calls.push({ kind: 'schedule' }); return true },
   }
   const context = vm.createContext({
     exports: {}, console: { log() {} },
@@ -27,8 +27,8 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
     BackgroundKeeper: { keepAlive: async () => { calls.push({ kind: 'keepAlive' }); return true }, stopKeepAlive: async () => {} },
     setTimeout: (callback) => { values.set('chaxterlog.runner', ''); callback() },
   })
-  vm.runInContext(compile('config.ts'), context)
-  config = { ...context.exports, BACKGROUND_POLLING: background, CLOCK_IN_URL: url ?? context.exports.CLOCK_IN_URL }
+  const load = (file) => vm.runInContext('(function(exports, require) {' + compile(file) + '; return exports; })', context)({}, context.require)
+  config = { ...load('config.ts'), BACKGROUND_POLLING: background }
   config.markArrived('old-clock-in-link', 'old-clock-out-link')
   if (action === 'clockOut') config.markClockedIn()
   const state = { u15: 1, o15: 2, total: 3, changedAt: '', refreshedAt: '', message: '', flash: '' }
@@ -42,7 +42,7 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
   context.require = (name) => ({
     scripting: { Script: script, Notification: notifications, LiveActivity: {
       getAllActivities: async () => active ? [{ id: 'fixture', state: 'active' }] : [],
-      from: async () => ({ update: async (state) => calls.push({ kind: 'update', state }) }),
+      from: async () => ({ update: async (state) => { calls.push({ kind: 'update', state }); return true } }),
       endAllActivities: async (options) => { active = false; if (options?.dismissTimeInterval <= 0) visible = false; calls.push({ kind: 'end' }) },
     } },
     './config': config,
@@ -58,9 +58,12 @@ function harness({ action = 'clockIn', resume = false, opened = true, url, fetch
     './audio': { startSilentAudio: async () => async () => {} },
     './live_activity': { ChaxterActivity: () => ({ start: async (state) => { active = true; visible = true; calls.push({ kind: 'start', state }); return true }, update: async () => {} }) },
   })[name]
-  vm.runInContext(compile('index.tsx').replace(/\nmain\(\)[\s\S]*$/, ''), context)
+  const automation = load('automation.ts')
+  const requireModule = context.require
+  context.require = (name) => name === './automation' ? automation : requireModule(name)
+  const main = vm.runInContext('(function(exports, require) {' + compile('index.tsx').replace(/\nmain\(\)[\s\S]*$/, '') + '; return main; })', context)({}, context.require)
   return { calls, config, values, run: async () => {
-    await vm.runInContext('main()', context)
+    await main()
     if (resume) await onResume({ queryParameters: { [action]: '1' } })
   }, isActive: () => active, isVisible: () => visible }
 }
@@ -119,7 +122,7 @@ for (const resume of [false, true]) {
     h.config.markClockedIn()
     await h.run()
     assert.equal(h.isActive(), true)
-    const update = h.calls.find(call => call.kind === 'update')
+    const update = h.calls.findLast(call => call.kind === 'update')
     assert.ok(update, 'the existing Live Activity must be updated')
     assert.equal(update.state.clockIn, '')
     assert.equal(update.state.clockOut, h.config.clockOutLink())

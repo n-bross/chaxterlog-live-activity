@@ -1,4 +1,4 @@
-// AVPlayer, FileManager, MediaPlayer, Path and SharedAudioSession are Scripting globals.
+// AVPlayer, FileManager, MediaPlayer and SharedAudioSession are Scripting globals.
 import { AUDIO_MODE } from "./config"
 
 // iOS suspends an app in the background after a short while, which stops the 15-second polling loop.
@@ -22,7 +22,7 @@ function silentWav() {
 
 export async function startSilentAudio(): Promise<(() => Promise<void>) | null> {
   if (AUDIO_MODE === "off") return null
-  const path = Path.join(FileManager.temporaryDirectory, "chaxterlog-silence.wav")
+  const path = `${FileManager.temporaryDirectory.replace(/\/$/, "")}/chaxterlog-silence.wav`
   await FileManager.writeAsBytes(path, silentWav())
   await SharedAudioSession.setCategory("playback", AUDIO_MODE === "mix" ? ["mixWithOthers"] : [])
   await SharedAudioSession.setActive(true)

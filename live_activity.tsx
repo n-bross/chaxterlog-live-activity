@@ -29,7 +29,7 @@ const STYLE = {
 
 function CountButton({ label, value, group, flash, height }: { label: string; value: number; group: "u15" | "o15"; flash: boolean; height: number }) {
   // While flashing, the button turns green and the plus becomes a check mark; the number rolls on.
-  const style = flash ? { background: SUCCESS, text: "white" } : STYLE[group]
+  const style = flash ? { background: SUCCESS, text: "white" } as const : STYLE[group]
   return (
     <Button intent={CountIntent({ group })} buttonStyle="plain">
       <HStack spacing={6} padding={{ leading: 18, trailing: 14 }} frame={{ maxWidth: "infinity", minHeight: height, maxHeight: height }} background={{ style: style.background, shape: "capsule" }}>

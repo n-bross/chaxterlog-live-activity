@@ -2,12 +2,13 @@
 // Notification is a module export and must be imported explicitly.
 import { LiveActivity, Notification, Script } from "scripting"
 import { ChaxterActivity } from "./live_activity"
+import { arrive, leave, updateRunning } from "./automation"
 import { callApi } from "./api"
 import { startSilentAudio } from "./audio"
 import { openZeusObserved, copyZeusObservation } from "./zeus-flow"
 import {
-  ACTIVITY_NAME, BACKGROUND_POLLING, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, POLL_DEBUG_KEY, REMINDER_MINUTES, RUNNER_KEY, SHARED, TAP_KEY,
-  clearArrival, clearToken, clock, clockInPending, clockOutLink, clockOutPending, isToken, markArrived, markClockedIn, markClockedOut, readToken, saveToken, withClockIn, type ChaxterState,
+  ACTIVITY_NAME, BACKGROUND_POLLING, DEBUG_KEY, FLASH_MS, LAST_STATE_KEY, POLL_DEBUG_KEY, RUNNER_KEY, SHARED, TAP_KEY,
+  clearArrival, clearToken, clock, isToken, markClockedIn, markClockedOut, readToken, saveToken, withClockIn, type ChaxterState,
 } from "./config"
 
 const POLL_MS = 15_000
@@ -37,34 +38,6 @@ async function ensureToken() {
 // Start links: "?arrive=1" when arriving at work (Shortcuts automation), "?leave=1" when leaving,
 // "?clockIn=1" / "?clockOut=1" from the buttons and the reminders. URL values arrive as strings.
 const flag = (value: unknown) => value === true || value === "1" || value === "true"
-
-async function updateRunning(state: ChaxterState) {
-  for (const detail of await LiveActivity.getAllActivities()) {
-    if (detail.state !== "active") continue
-    await (await LiveActivity.from(detail.id, ACTIVITY_NAME))?.update(withClockIn(state))
-  }
-}
-
-// Arriving shows the Einstempeln button and schedules the reminders, unless today is already done.
-async function arrive() {
-  const link = Script.createRunSingleURLScheme(Script.name, { clockIn: "1" })
-  markArrived(link, Script.createRunSingleURLScheme(Script.name, { clockOut: "1" }))
-  try {
-    await Notification.removeAllPendingsOfCurrentScript()
-    if (!clockInPending()) return
-    for (const minutes of REMINDER_MINUTES) {
-      await Notification.schedule({
-        title: "Einstempeln nicht vergessen",
-        body: `Du bist seit ${minutes} Minuten in der Arbeit. Tippen zum Einstempeln.`,
-        interruptionLevel: "timeSensitive",
-        trigger: new TimeIntervalNotificationTrigger({ timeInterval: minutes * 60, repeats: false }),
-        tapAction: { type: "openURL", url: link },
-      })
-    }
-  } catch (error) {
-    console.log(`Erinnerungen nicht verfügbar: ${String(error)}`)
-  }
-}
 
 // Marks today as clocked in: the button disappears, open reminders are withdrawn.
 async function clockIn() {
@@ -102,34 +75,6 @@ async function resumePolling() {
   if (last && running) {
     const activity = await LiveActivity.from(running.id, ACTIVITY_NAME)
     if (activity) await keepPolling(activity, last)
-  }
-}
-
-// Leaving ends the activity, unless today's clock-out is still open: then the activity stays with
-// the Ausstempeln button and one reminder goes out. Stamping itself only happens on a tap.
-async function leave() {
-  Storage.set(RUNNER_KEY, "", SHARED)
-  clearArrival()
-  const pending = clockOutPending()
-  // The button must change even when notification permission is denied or scheduling fails.
-  if (pending) {
-    const last = Storage.get<ChaxterState>(LAST_STATE_KEY, SHARED)
-    if (last) await updateRunning(last)
-  } else {
-    try { await LiveActivity.endAllActivities({ dismissTimeInterval: 0 }) } catch { /* nothing running */ }
-  }
-  try {
-    await Notification.removeAllPendingsOfCurrentScript()
-    if (pending) {
-      await Notification.schedule({
-        title: "Ausstempeln nicht vergessen",
-        body: "Du hast die Arbeit verlassen. Tippen zum Ausstempeln.",
-        interruptionLevel: "timeSensitive",
-        tapAction: { type: "openURL", url: clockOutLink() },
-      })
-    }
-  } catch (error) {
-    console.log(`Erinnerungen nicht verfügbar: ${String(error)}`)
   }
 }
 
@@ -236,6 +181,6 @@ async function keepPolling(
 
 main().catch(async (error) => {
   const message = String(error)
-  Storage.set(DEBUG_KEY, `ChaxterLog 1.3.5: ${message}`, SHARED)
-  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.3.5\n${message}` })
+  Storage.set(DEBUG_KEY, `ChaxterLog 1.4.0: ${message}`, SHARED)
+  await Dialog.alert({ title: "ChaxterLog konnte nicht fortfahren", message: `Version 1.4.0\n${message}` })
 }).finally(() => Script.exit())

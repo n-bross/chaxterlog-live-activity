@@ -21,7 +21,7 @@ export const RUNNER_KEY = "chaxterlog.runner"
 // music, "nowPlaying" silent audio as the Now Playing app (stops other music), "off" none.
 export const AUDIO_MODE: "mix" | "nowPlaying" | "off" = "mix"
 
-// Clock-in reminder. Arriving at work (a Shortcuts automation opens the arrive link, see README)
+// Clock-in reminder. Arriving at work (a background Shortcuts action records arrival, see README)
 // shows an "Einstempeln" button that stays until it is tapped, and reminders follow after these
 // minutes. After clocking in only the three counters remain; leaving reveals "Ausstempeln".
 // Both buttons open the observed ZeusX page inside ChaxterLog; the user stamps there manually.

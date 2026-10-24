@@ -1,24 +1,32 @@
-// Safari is a Scripting global.
 import { Intent, Script } from "scripting"
+import { arrive, leave } from "./automation"
 
-// Entry for the Shortcuts actions "Run Script in App" (Scripting → ChaxterLog). The automation picks
-// the script from a list, so the link below always carries the name the script is installed under.
-// Input text "gehen" / "leave" ends the day; anything else, or no input, starts it ("ankommen").
+// Use Scripting's "Run Script" action, not "Run Script in App" or "Open URL".
+// The automation must be able to finish without opening an app or asking for unlock.
 const input = (Intent.shortcutParameter?.type === "text" ? String(Intent.shortcutParameter.value) : Intent.textsParameter?.[0] ?? "").trim().toLowerCase()
-const leaving = /geh|leave|verlass/.test(input)
-const copyingLog = /^(protokoll|log|zeuslog)$/.test(input)
 
 async function run() {
-  let opened = false
+  let message: string
   try {
-    opened = await Safari.openURL(Script.createRunSingleURLScheme(Script.name, copyingLog ? { zeusLog: "1" } : leaving ? { leave: "1" } : { arrive: "1" }))
-  } catch { /* Show the same actionable error as a rejected URL. */ }
-  if (!opened) {
-    await Dialog.alert({ title: "ChaxterLog nicht gestartet", message: "Bitte in Kurzbefehle die Scripting-Aktion „Run Script in App“ verwenden und dieses Skript auswählen. Zum Prüfen kannst du index.tsx direkt in Scripting starten." })
-    Script.exit(Intent.text("ChaxterLog konnte nicht gestartet werden."))
-    return
+    if (/^(protokoll|log|zeuslog)$/.test(input)) {
+      message = `ZeusX-Aufzeichnung öffnen: ${Script.createRunSingleURLScheme(Script.name, { zeusLog: "1" })}`
+    } else if (/^(gehen|leave|verlassen|depart|departure)$/.test(input)) {
+      const result = await leave()
+      message = result.pending
+        ? result.notificationsScheduled ? "ChaxterLog: Ausstempeln vorgemerkt, Mitteilung geplant." : "ChaxterLog: Ausstempeln vorgemerkt. Bitte Mitteilungen für Scripting erlauben."
+        : "ChaxterLog: Verlassen verarbeitet, keine offene Ausstempelung."
+    } else if (/^(ankommen|arrive|arrival)?$/.test(input)) {
+      const result = await arrive(true)
+      message = result.pending
+        ? result.notificationsScheduled ? "ChaxterLog: Ankommen gespeichert. Mitteilung antippen, um die Live Activity zu starten." : "ChaxterLog: Ankommen gespeichert. Bitte Mitteilungen für Scripting erlauben und ChaxterLog manuell öffnen."
+        : "ChaxterLog: Ankommen gespeichert, bereits eingestempelt."
+    } else {
+      message = "ChaxterLog: Als Eingabe bitte „ankommen“ oder „gehen“ verwenden."
+    }
+  } catch (error) {
+    message = `ChaxterLog: Hintergrundaktion fehlgeschlagen: ${String(error)}`
   }
-  Script.exit(Intent.text(copyingLog ? "ChaxterLog: ZeusX-Aufzeichnung" : leaving ? "ChaxterLog: Gehen" : "ChaxterLog: Ankommen"))
+  Script.exit(Intent.text(message))
 }
 
 run()

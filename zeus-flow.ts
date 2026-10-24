@@ -9,7 +9,7 @@ const MAX_CAPTURES = 20
 const DIAGNOSTIC_KEY = "chaxterlog.zeus.observerDiagnostic.v1"
 type ObserverChecks = { originAllowed: boolean; installed: boolean; bridgeAvailable: boolean; loginPage: boolean; terminalButtonFound: boolean; terminalResultFound: boolean; frameCount: number }
 type ObserverDiagnostic = {
-  version: "1.3.5"; script: string; action: "in" | "out"; startedAt: string;
+  version: "1.4.0"; script: string; action: "in" | "out"; startedAt: string;
   phase: "opening" | "loaded" | "observing" | "openFailed" | "closed";
   installAttempts: number; evaluationFailures: number; records: number; rejectedMessages: number;
   checks?: ObserverChecks;
@@ -29,7 +29,7 @@ export async function copyZeusObservation() {
   const captures = readCaptures()
   const diagnostic = Storage.get<ObserverDiagnostic>(DIAGNOSTIC_KEY, SHARED)
   if (!captures.length && !diagnostic) {
-    await Dialog.alert({ title: "Keine ZeusX-Aufzeichnung", message: `In diesem Projekt (${Script.name}, Version 1.3.5) ist keine Aufzeichnung oder Diagnose gespeichert. Öffne ZeusX über den Knopf dieser ChaxterLog-Version. Für eine Selbstprüfung brauchst du nicht zu stempeln: Schließe die Seite wieder und wähle „Noch nicht – Knopf behalten“.` })
+    await Dialog.alert({ title: "Keine ZeusX-Aufzeichnung", message: `In diesem Projekt (${Script.name}, Version 1.4.0) ist keine Aufzeichnung oder Diagnose gespeichert. Öffne ZeusX über den Knopf dieser ChaxterLog-Version. Für eine Selbstprüfung brauchst du nicht zu stempeln: Schließe die Seite wieder und wähle „Noch nicht – Knopf behalten“.` })
     return
   }
   await Pasteboard.setString(JSON.stringify({ schema: "zeus-observations/v2", captures, diagnostic }, null, 2))
@@ -40,7 +40,7 @@ export async function openZeusObserved(action: "in" | "out"): Promise<boolean> {
   const capture: Capture = { schema: "zeus-observation/v1", action, startedAt: new Date().toISOString(), records: [] }
   const previous = readCaptures()
   const diagnostic: ObserverDiagnostic = {
-    version: "1.3.5", script: Script.name, action, startedAt: capture.startedAt,
+    version: "1.4.0", script: Script.name, action, startedAt: capture.startedAt,
     phase: "opening", installAttempts: 0, evaluationFailures: 0, records: 0, rejectedMessages: 0,
   }
   let diagnosticSavedAt = 0

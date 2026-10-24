@@ -1,93 +1,85 @@
 # ChaxterLog Live Activity (Scripting)
 
-Live Activity für den Sperrbildschirm und die Dynamic Island mit den Knöpfen Undo (eigenen letzten Klick zurücknehmen), U15 +1 und Ü15 +1 in den Farben der Website. Läuft in der iOS-App [Scripting](https://scriptingapp.github.io/).
+Live Activity für Sperrbildschirm und Dynamic Island mit Undo, U15 +1 und Ü15 +1. Läuft in [Scripting](https://scriptingapp.github.io/); ZeusX mit passiver Beobachtung ist enthalten.
 
-## Einrichten
+## Einrichten und auf 1.4.0 aktualisieren
 
-1. In Scripting **Import Remote Scripts** mit `https://github.com/n-bross/chaxterlog-live-activity`.
-2. `index.tsx` starten. Beim ersten Start fragt das Skript nach dem Token. Den Token in ChaxterLog unter Konto → Handy-Widget & Kurzbefehle erstellen. Er wird nur im Schlüsselbund dieses Skripts gespeichert, nie im Code.
-3. Erneutes Starten ersetzt die laufende Live Activity.
+1. Das vorhandene Projekt aus `https://github.com/n-bross/chaxterlog-live-activity` aktualisieren oder über den verbundenen Developer Server synchronisieren. Dasselbe Projekt weiterverwenden, damit Token und Aufzeichnungen erhalten bleiben.
+2. `index.tsx` einmal **bei entsperrtem iPhone** starten. Falls nötig, den Token aus ChaxterLog → Konto → Handy-Widget & Kurzbefehle einfügen. Er liegt nur im Schlüsselbund des Skripts. Mitteilungen und Live-Aktivitäten für Scripting erlauben.
+3. Die Ankommen- und Verlassen-Kurzbefehle wie unten umstellen. Alte URL-Aktionen verlangen weiterhin den Vordergrund; ein Skript-Update allein ändert diese Aktionen nicht.
 
-**Ab Version 1.3.0 ist ZeusX-Beobachtung direkt enthalten. Nur dieses Projekt importieren bzw. aktualisieren.** Das separate Projekt „ZeusX beobachten“ ist für diesen Ablauf nicht mehr nötig. Starte nach dem Update `index.tsx` einmal neu, damit die Live Activity die aktuellen Knopf-Links erhält. Das Skript benötigt den Vordergrund; in Kurzbefehle **Run Script in App** verwenden.
+## Automationen bei gesperrtem iPhone
 
-Die Live Activity besteht nur aus drei Knöpfen ohne Hintergrund: Undo links, U15 und Ü15 mit dem Tagesstand des ganzen Teams. Ein Tipp färbt den Knopf kurz grün (Undo rot). Eine Zeile darunter erscheint nur bei einem Fehler.
+**Beide Automationen verwenden jetzt die Scripting-Aktion „Run Script“ / „Skript ausführen“.** Die bisherigen Aktionen „URL öffnen“ und „Run Script in App“ müssen ersetzt werden: Sie versuchen Scripting im Vordergrund zu öffnen und können ein Entsperren verlangen.
 
-Mit Scripting PRO läuft `index.tsx` im Hintergrund weiter und fragt alle 15 Sekunden den Stand ab, so erscheinen Klicks anderer Mitarbeiter von selbst. Damit iOS Scripting im Hintergrund nicht anhält, spielt das Skript dabei eine Sekunde Stille in Schleife (`AUDIO_MODE` in `config.ts`): `"mix"` (Standard) läuft neben Musik her; reicht das nicht, `"nowPlaying"` versuchen (ChaxterLog erscheint als laufende Wiedergabe, andere Musik stoppt). Die Zeit der letzten Abfrage steht beim nächsten Start im Log. Ohne PRO zeigt Scripting einen Upgrade-Dialog; dann `BACKGROUND_POLLING` in `config.ts` auf `false` setzen, und der Stand kommt nur mit jedem eigenen Tipp.
+| Automation | Aktion | Skript | Texteingabe |
+|---|---|---|---|
+| Ankommen / Arrive | Scripting: Run Script | ChaxterLog | `ankommen` (oder keine Eingabe) |
+| Verlassen / Departure | Scripting: Run Script | ChaxterLog | `gehen` |
 
-## Ankommen, Einstempeln, Gehen
+- In Scripting beim Projekttitel → **Intent Settings** die Eingabe **Text** erlauben.
+- Für die Automation **Sofort ausführen / Run Immediately** wählen, falls diese Option angezeigt wird. Falls verfügbar, in den Details unter **Datenschutz → Ausführen im gesperrten Zustand erlauben / Allow Running When Locked** aktivieren. Die Oberfläche unterscheidet sich nach iOS-Version.
+- Falls die Aktion „Beim Ausführen anzeigen / Show When Run“ anbietet, ausschalten. Keine zusätzlichen Aktionen „App öffnen“, „URL öffnen“, „Schnellansicht“ oder Dialoge an den automatischen Ablauf anhängen.
+- Beide Kurzbefehle einmal entsperrt ausführen und eventuelle Systemberechtigungen erteilen. Danach mit einem zeitgesteuerten Test bei gesperrtem Bildschirm prüfen; dafür sind weder Ortswechsel noch echte ZeusX-Buchungen nötig.
 
-- **Ankommen (empfohlen):** Kurzbefehle → Automation → „Ankommen“ → „Sofort ausführen“ (Run Immediately) → Aktion **„Skript in App ausführen“ / „Run Script in App“** von Scripting → Skript „ChaxterLog“ aus der Liste wählen. Das startet `intent.tsx`, das den passenden Link selbst öffnet; der Skriptname muss nicht stimmen. Für „Verlassen“ dieselbe Aktion mit dem Text „gehen“ als Eingabe (dafür in Scripting beim Projekt unter Intent-Einstellungen „Text“ als Eingabe erlauben).
-- **Ankommen per Link:** In der Kurzbefehle-App eine persönliche Automation „Ankommen“ beim Arbeitsort anlegen, „Sofort ausführen“ wählen, Aktion „URL öffnen“ mit `scripting://run_single/ChaxterLog?arrive=1`. Das öffnet Scripting kurz und startet die Live Activity (iOS lässt sie nur bei geöffneter App starten). Wer schon ein eigenes Standort-Skript hat, öffnet von dort denselben Link oder ruft `Script.run({ name: "ChaxterLog", queryParameters: { arrive: true } })` auf.
-- **Einstempeln:** Der orange Knopf öffnet ZeusX **innerhalb von ChaxterLog**, mit der passiven Beobachtung bereits aktiv. Du meldest dich dort an und drückst selbst „Kommt/Geht“. Warte die vollständige Rückmeldung ab und schließe die eingeblendete Webseite. Wähle anschließend **Ja, eingestempelt**. Dann verschwinden beide Stempelknöpfe, die Erinnerungen werden gelöscht und nur Undo, U15 und Ü15 bleiben sichtbar; die Hintergrund-Abfragen laufen weiter.
-- **Ausstempeln:** Der Knopf erscheint erst nach der Verlassen-Automation. Er öffnet dieselbe beobachtete ZeusX-Seite. Stemple dort selbst aus, schließe die Webseite und wähle **Ja, ausgestempelt**. Dann endet die Live Activity samt laufender Abfragen und Erinnerungen.
-- **Abbrechen oder Fehler:** Wenn du **Noch nicht – Knopf behalten** wählst, die Frage schließt oder ZeusX nicht geladen werden kann, bleiben Stempelknopf und Erinnerungen bestehen. Die Besucher-API muss für den ZeusX-Aufruf nicht erreichbar sein.
-- **Gehen (optional):** Automation „Verlassen“ mit `scripting://run_single/ChaxterLog?leave=1`. Ist schon ausgestempelt, endet die Live Activity. Sonst bleibt sie mit dem Ausstempeln-Knopf stehen und es kommt eine Erinnerung.
+### Was bei Ankommen passiert
 
-Auch `index.tsx` ohne Parameter zu starten gilt jetzt als Ankommen: Die Live Activity startet mit dem Einstempeln-Knopf. Wiederholtes Starten während eines laufenden Besuchs erhält den bisherigen Stand. Nach Ausstempeln und erneutem Start ist auch am selben Tag eine neue Sitzung möglich.
+Der Hintergrund-Intent speichert die Ankunft und die Stempel-Links, aktualisiert eine bereits vorhandene Activity und plant sofort eine Mitteilung sowie Erinnerungen nach 10, 20 und 30 Minuten. Es werden keine App, Webseite oder Eingabefrage geöffnet und keine Besucher gezählt.
 
-Die Stempelknöpfe und Erinnerungen verwenden `run_single` mit dem tatsächlich installierten Skriptnamen. Dadurch brauchen sie keinen Resume-Callback des alten Laufs. Nach dem Update `index.tsx` einmal neu starten, damit bereits gespeicherte Knopf-Links ersetzt werden.
+**Eine neue Live Activity startet mit den derzeit verwendeten Scripting-APIs erst im Vordergrund.** Tippe deshalb die Ankommen-Mitteilung an und entsperre das iPhone. ChaxterLog startet mit **Einstempeln**. Eine vorhandene Activity kann bereits im Hintergrund aktualisiert werden. Die Mitteilungen verwenden den Ankommen-Link, damit auch eine fehlende Activity beim Antippen erstellt werden kann.
 
-## Eingebaute ZeusX-Beobachtung
+Bei bereits bestätigtem Einstempeln löst eine erneute Ankunft keine weiteren Einstempel-Erinnerungen aus. Fehler bei Mitteilungen verhindern die Zustandsänderung nicht; der Kurzbefehl gibt dann einen entsprechenden Hinweis als Text zurück.
 
-Der Beobachter erfasst ausschließlich deinen eigenen Kommt/Geht-Tipp und den danach sichtbaren Bereich `TerminalResult` oberhalb des Knopfs. Die letzten 20 aufgezeichneten ZeusX-Sitzungen bleiben gemeinsam im selben ChaxterLog-Projekt auf dem iPhone gespeichert; Login-Eingaben und Cookies werden nicht gelesen. Die normale WebView-Sitzung bleibt lokal erhalten, damit du dich nicht bei jedem Aufruf neu anmelden musst. Kein Skript drückt Stempelknöpfe oder führt Buchungen im Hintergrund aus.
+### Was bei Verlassen passiert
 
-Nach dem Schließen der Webseite kannst du direkt **ZeusX-Aufzeichnung kopieren** wählen. Alternativ später die Scripting-Kurzbefehl-Aktion für ChaxterLog mit dem Text **protokoll** starten oder `scripting://run_single/ChaxterLog?zeusLog=1` öffnen. Bei einem anderen installierten Projektnamen den Namen im Link entsprechend anpassen.
+Nach zuvor bestätigtem Einstempeln erscheint **Ausstempeln** in der laufenden Activity und eine Mitteilung wird geplant. Ist die Activity schon beendet oder kann sie nicht aktualisiert werden, öffnet der Mitteilungs-Link trotzdem den beobachteten ZeusX-Ablauf. Ohne offene Ausstempelung wird die Activity sofort entfernt. Die laufenden Besucher-Abfragen werden beim Verlassen beendet.
 
-Die Aufzeichnung markiert allein noch keinen Erfolg, da auch eine Fehlermeldung die Terminal-Anzeige verändert. Deshalb bestätigst du die Buchung vorerst selbst nach dem Schließen von ZeusX. Die automatische Erkennung einer erfolgreichen Buchung mit Saldo bleibt bis zur Auswertung der echten Rückmeldung ausgesetzt.
+## Ein- und Ausstempeln
 
-## Kurzbefehle
+- **Einstempeln:** Der Knopf öffnet ZeusX innerhalb von ChaxterLog. Melde dich an und drücke selbst „Kommt/Geht“. Warte die Rückmeldung ab, schließe die Webseite und wähle **Ja, eingestempelt**. Die Stempelknöpfe und Erinnerungen verschwinden; Undo, U15 und Ü15 bleiben.
+- **Ausstempeln:** Der Knopf erscheint nach Verlassen. Stemple auf ZeusX selbst aus, schließe die Webseite und wähle **Ja, ausgestempelt**. Die Activity wird mit `dismissTimeInterval: 0` sofort entfernt.
+- **Abbrechen oder Fehler:** Bei **Noch nicht – Knopf behalten** oder einem Ladefehler bleiben die Stempelknöpfe erhalten. Die Besucher-API muss für den ZeusX-Aufruf nicht erreichbar sein.
 
-Automationen werden weiterhin auf dem iPhone eingerichtet. In der englischen Kurzbefehle-App die Scripting-Aktion **Run Script in App** verwenden, „ChaxterLog“ auswählen und zum Ankommen keine Eingabe übergeben. Für Verlassen den Text **gehen** übergeben; dafür in Scripting in den Intent-Einstellungen die Eingabe **Text** erlauben. Die passenden Links stehen bei jedem Start im Log.
+`index.tsx` ohne Parameter gilt als manuelles Ankommen. Wiederholtes Starten während eines laufenden Besuchs erhält den Stempelstatus. Nach Ausstempeln und erneutem Start ist auch am selben Tag eine neue Sitzung möglich.
 
-## Aufbau
+Manuelle Links bleiben verfügbar; sie benötigen den Vordergrund:
+
+- `scripting://run_single/ChaxterLog?arrive=1`
+- `scripting://run_single/ChaxterLog?leave=1`
+- `scripting://run_single/ChaxterLog?zeusLog=1`
+
+Bei einem abweichenden Projektnamen den Namen ersetzen. Die Stempelknöpfe und Mitteilungen erzeugen ihre Links automatisch mit dem installierten Namen.
+
+## Besucherzahlen im Hintergrund
+
+Mit Scripting PRO fragt `index.tsx` alle 15 Sekunden den Stand ab. Die Activity zeigt Undo, U15 und Ü15 in den Farben der Website; ein Tipp färbt den Knopf kurz grün (Undo rot). Eine zusätzliche Zeile erscheint nur bei Fehlern.
+
+Damit iOS die Abfragen im Hintergrund nicht anhält, spielt das Skript Stille in Schleife: `AUDIO_MODE` in `config.ts` ist standardmäßig `"mix"` neben anderer Musik. `"nowPlaying"` übernimmt die Wiedergabe und kann andere Musik stoppen; `"off"` deaktiviert die Audiohilfe. Ohne PRO `BACKGROUND_POLLING` auf `false` setzen; dann aktualisieren eigene Knopf-Tipps den Stand. Die Hintergrund-Automationen selbst benötigen keine dauerhafte Audio-Wiedergabe.
+
+## ZeusX-Beobachtung und Diagnose
+
+Der Beobachter erfasst ausschließlich deinen eigenen Kommt/Geht-Tipp und die danach sichtbare Rückmeldung in `TerminalResult`. Die neuesten **20 Sitzungen mit Ereignissen**, je maximal 100 Ereignisse, bleiben im selben Projekt auf dem iPhone gespeichert. Ein gemeinsamer Export nach Ein- und Ausstempeln reicht. Öffnen ohne Ereignisse überschreibt keine frühere Aufzeichnung; eine vorhandene alte Einzelaufzeichnung wird übernommen. Login-Eingaben und Cookies werden nicht gelesen, und kein Skript führt Buchungen automatisch aus.
+
+Nach dem Schließen der Webseite **ZeusX-Aufzeichnung kopieren** wählen oder den oben genannten `zeusLog`-Link manuell öffnen. Die Hintergrund-Kurzbefehl-Eingabe **protokoll** gibt diesen Link als Text zurück; sie öffnet die App nicht automatisch.
+
+Zusätzlich wird beim Öffnen von ZeusX eine Diagnose gespeichert: Skriptversion und Projektname, Lade-/Abschlussstatus, Injektionsversuche und Fehleranzahl sowie Wahrheitswerte für Beobachter, Nachrichtenbrücke, Login-Seite, Stempelknopf und Terminal-Bereich. Die Anzahl der iFrames wird erfasst; Login-Werte, Cookies und weitere Seitentexte werden nicht ausgelesen. Der Export enthält die Diagnose auch ohne Buchungsereignisse und bezeichnet eine leere Ereignisliste ausdrücklich als **Keine Buchung erfasst**. Alte fehlende Aufzeichnungen können nicht wiederhergestellt werden.
+
+Eine Prüfung braucht keine zusätzliche Stempelung: ZeusX über ChaxterLog öffnen, die Seite laden lassen, schließen, **Noch nicht – Knopf behalten** wählen und den Export-Link öffnen. Eine veränderte Terminal-Anzeige allein beweist noch keine erfolgreiche Buchung; bis zur Auswertung echter Rückmeldungen bestätigst du den Erfolg selbst.
+
+## Aufbau und Prüfung
 
 | Datei | Aufgabe |
 |---|---|
-| `config.ts` | Adresse, Name, Token im Schlüsselbund, gemeinsamer Zustand |
-| `api.ts` | Anfragen an die ChaxterLog-API |
-| `app_intents.tsx` | Knopf-Aktionen; findet laufende Activities über `LiveActivity.from` |
-| `live_activity.tsx` | Ansicht und die einzige `LiveActivity.register`-Stelle |
-| `index.tsx` | Token abfragen, Activity starten, Stand abfragen |
-| `zeus-flow.ts` | Gemeinsame ZeusX-WebView, Abschlussabfrage und Export |
-| `zeus-observer.ts` | Passives Erfassen des eigenen Stempelklicks und der Terminal-Rückmeldung |
-| `audio.ts` | Stille Audio-Wiedergabe, damit iOS das Skript im Hintergrund weiterlaufen lässt |
+| `config.ts` | Adresse, Token und gemeinsamer Zustand |
+| `automation.ts` | Endliche Hintergrundaktionen für Ankommen und Verlassen, Mitteilungen |
+| `intent.tsx` | Kurzbefehl-Eingabe und Rückgabe ohne App-Öffnen |
+| `index.tsx` | Token abfragen, Activity im Vordergrund starten, Stand abfragen |
+| `app_intents.tsx` | Zählknöpfe und Undo |
+| `live_activity.tsx` | Ansicht und einzige `LiveActivity.register`-Stelle |
+| `zeus-flow.ts` | ZeusX-WebView, Bestätigung und Export |
+| `zeus-observer.ts` | Passives Erfassen des eigenen Stempelklicks |
+| `audio.ts` | Audiohilfe für laufende Besucher-Abfragen |
 
-`app_intents.tsx` darf `live_activity.tsx` weder direkt noch über andere Dateien importieren: Scripting führt die Datei sonst ein zweites Mal aus, und die doppelte Registrierung bricht mit „Registering the same builder name repeatedly is not allowed“ ab.
+`app_intents.tsx` darf die Activity-Ansicht nicht statisch importieren, da ein Importzyklus zu doppelter Registrierung führt. Der Hintergrund-Intent lädt die Ansicht erst unmittelbar vor dem Aktualisieren einer vorhandenen Activity.
 
-## Prüfen
-
-Mit installiertem TypeScript: `node --test tests/*.test.cjs`. Die Tests prüfen den gemeinsamen beobachteten ZeusX-Aufruf, das Behalten der Knöpfe bei Abbruch, das Entfernen von Einstempeln erst nach Bestätigung, Ausstempeln erst nach Verlassen, das Ende der Activity sowie Aufzeichnung, Export und Kurzbefehl-Aufrufe. Es werden keine echten Stempelungen ausgelöst.
-
-Falls ChaxterLog beim Start oder im laufenden Ablauf scheitert, zeigt es nun einen Fehlerdialog mit Version 1.3.5 und dem Fehlertext an. Diesen Text zur Diagnose übermitteln.
-
-## Startkorrektur in 1.3.1
-
-`Notification` wird ausdrücklich aus `scripting` importiert. Dadurch entfallen die Compile-Fehler „Cannot find name Notification“, die den Start verhindert haben. Fehler beim Planen der Ankunftserinnerungen werden außerdem protokolliert und verhindern nicht mehr den Start der Live Activity.
-
-Das vorhandene Projekt in Scripting aus diesem Repository aktualisieren und danach `index.tsx` mit ▶ starten. Die Versionsnummer muss **1.3.1** sein. ZeusX-Beobachtung ist bereits in diesem Projekt enthalten.
-
-## Verlassen-Korrektur in 1.3.2
-
-Der Verlassen-Aufruf wird jetzt auch behandelt, wenn ein `scripting://run/ChaxterLog?leave=1`-Link das bereits laufende Skript fortsetzt. Zuvor wurde `leave` in diesem Fall ignoriert. Der empfohlene Link bleibt `scripting://run_single/ChaxterLog?leave=1`; dieser startet den Ablauf neu. Der Ausstempeln-Knopf wird vor der Erinnerung aktualisiert und bleibt auch bei einem Fehler der Benachrichtigungen sichtbar.
-
-Zum Prüfen: vorhandenes ChaxterLog-Projekt auf **1.3.2** aktualisieren, `index.tsx` starten und nach deiner eigenen regulären ZeusX-Buchung **Ja, eingestempelt** bestätigen. Jetzt bleiben die drei Zählknöpfe. Den Verlassen-Kurzbefehl ausführen: **Ausstempeln** muss erscheinen. Nach eigener Ausstempelung und **Ja, ausgestempelt** endet die Activity. Ohne zuvor bestätigtes Einstempeln beendet Verlassen die Activity direkt.
-
-## Sofortiges Entfernen in 1.3.3
-
-Nach **Ja, ausgestempelt** wird die Activity jetzt mit `dismissTimeInterval: 0` sofort vom Sperrbildschirm entfernt. Ohne diese Option konnte die bereits beendete Anzeige noch mehrere Stunden sichtbar bleiben. Fehler beim Löschen von Erinnerungen verhindern das Entfernen nicht mehr. Auch beim Ersetzen einer alten Activity und beim Verlassen ohne offene Ausstempelung wird die alte Anzeige sofort entfernt.
-
-Das vorhandene Projekt auf **1.3.3** aktualisieren und `index.tsx` einmal neu starten. Die bisherigen Kurzbefehl-Links bleiben gleich. Der Abschluss erfolgt weiterhin nach deiner eigenen ZeusX-Buchung und der Bestätigung **Ja, ausgestempelt**; es werden keine Buchungen automatisch ausgeführt.
-
-## Beobachtungsverlauf in 1.3.4
-
-Ein- und Ausstempeln sowie weitere Versuche werden jetzt sitzungsübergreifend gespeichert. **ZeusX-Aufzeichnung kopieren** exportiert den gesamten Verlauf gemeinsam (`zeus-observations/v2`). Du musst nach dem Einstempeln nichts schicken; ein gemeinsamer Export nach dem Ausstempeln reicht. Aufgezeichnet wird weiterhin ausschließlich innerhalb der über ChaxterLog geöffneten ZeusX-Seite, nicht in anderen Browsern oder bei geschlossenem Skript.
-
-Gespeichert werden die neuesten **20 Sitzungen mit Ereignissen**, je höchstens 100 Ereignisse. Ein Öffnen ohne erfassten Stempelklick ersetzt keine frühere Aufzeichnung. Eine noch vorhandene Aufzeichnung aus Version 1.3.3 oder älter wird beim Upgrade übernommen; bereits überschriebene alte Sitzungen lassen sich nicht wiederherstellen. Login-Eingaben und Cookies bleiben ausgeschlossen.
-
-## Selbstprüfung bei leerer Aufzeichnung in 1.3.5
-
-Bei jeder über ChaxterLog geöffneten ZeusX-Seite wird jetzt auch eine kleine Diagnose gespeichert: Projektname und Version, Lade-/Abschlussstatus, Injektionsversuche und Fehleranzahl sowie Wahrheitswerte für aktiven Beobachter, vorhandene Nachrichtenbrücke, Login-Seite, gefundenen Stempelknopf und Terminal-Bereich. Die Anzahl von iFrames wird mit erfasst, um eine abweichende Seitenstruktur zu erkennen. Die Prüfung liest keine Login-Werte, Cookies, Formularinhalte oder sonstige Seitentexte.
-
-**ZeusX-Aufzeichnung kopieren** exportiert diese Diagnose auch dann, wenn kein Stempelklick erfasst wurde. Eine leere Ereignisliste wird weiterhin ausdrücklich als „Keine Buchung erfasst“ bezeichnet. Vorhandene Sitzungen bleiben im Verlauf erhalten. Bereits fehlende Aufzeichnungen werden dadurch nicht nachträglich wiederhergestellt.
-
-Eine Selbstprüfung erfordert keine zusätzliche Buchung: auf **1.3.5** aktualisieren, `index.tsx` neu starten, ZeusX über den Stempelknopf öffnen und die Seite laden lassen. Falls nur die Login-Seite erscheint, kann man sich regulär anmelden, ohne einen Stempelknopf zu drücken. Anschließend die Webseite schließen, **Noch nicht – Knopf behalten** wählen und `scripting://run_single/ChaxterLog?zeusLog=1` öffnen. Bei einem abweichenden Projektnamen den Namen im Link ersetzen. Den kopierten Diagnose-Text im Chat einfügen.
+Mit installiertem TypeScript: `node --test tests/*.test.cjs`. Die Tests prüfen Hintergrund-Aktionen ohne App-Öffnen, Erinnerungen bei fehlender Activity, verweigerte Mitteilungen, Zustandswechsel, bestätigte und abgebrochene Buchungsabläufe sowie passives Erfassen und Export. Es werden keine echten Stempelungen ausgelöst. Zusätzlich wurde Version 1.4.0 gegen die vom verbundenen Scripting-Gerät gelieferten Typdefinitionen geprüft. Der echte Sperrbildschirm-Ablauf muss am iPhone bestätigt werden.
